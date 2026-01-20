@@ -1,0 +1,124 @@
+.navbar {
+  background: white;
+  color: var(--text-dark);
+  padding: 1.5rem 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.navbar-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 2rem;
+}
+
+.navbar-logo {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--primary-gold);
+  text-decoration: none;
+  transition: all 0.3s ease;
+  letter-spacing: 1px;
+}
+
+.navbar-logo:hover {
+  color: var(--dark-gold);
+  transform: scale(1.02);
+}
+
+.nav-menu {
+  display: flex;
+  list-style: none;
+  gap: 3rem;
+  margin: 0;
+  padding: 0;
+  align-items: center;
+}
+
+.nav-item {
+  position: relative;
+}
+
+.nav-link {
+  color: var(--text-dark);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  padding: 0.5rem 0;
+  border-bottom: 2px solid transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nav-link:hover {
+  color: var(--primary-gold);
+  border-bottom: 2px solid var(--primary-gold);
+}
+
+.nav-link-btn {
+  background-color: var(--primary-gold);
+  color: white;
+  padding: 0.6rem 1.8rem;
+  border-radius: 4px;
+  border: none;
+  text-transform: capitalize;
+  letter-spacing: 0;
+  border-bottom: none;
+}
+
+.nav-link-btn:hover {
+  background-color: var(--dark-gold);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(201, 169, 97, 0.3);
+}
+
+.language-toggle {
+  background-color: #f0f0f0;
+  color: var(--text-dark);
+  padding: 0.6rem 1rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: capitalize;
+}
+
+.language-toggle:hover {
+  background-color: var(--primary-gold);
+  color: white;
+  border-color: var(--primary-gold);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 768px) {
+  .navbar-container {
+    padding: 0 1rem;
+  }
+
+  .navbar-logo {
+    font-size: 1.5rem;
+  }
+
+  .nav-menu {
+    gap: 1rem;
+  }
+
+  .nav-link {
+    padding: 0.3rem 0;
+    font-size: 0.85rem;
+  }
+
+  .language-toggle {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.75rem;
+  }
+}
