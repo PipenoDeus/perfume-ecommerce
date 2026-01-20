@@ -1,103 +1,111 @@
-# PerfumeShop - React + Supabase E-Commerce Website
+# SILK PERFUMES - Tienda de Perfumes E-Commerce
 
-A modern, fully-functional perfume e-commerce website built with React, Vite, and Supabase.
+Una tienda de perfumes moderna y completamente funcional construida con React, Vite y Supabase.
 
-## Features
+## Características
 
-✨ **Core Features**
-- 🛍️ Browse perfume catalog with product cards
-- 🛒 Shopping cart with add/remove/update functionality
-- 👤 User authentication (Sign up / Login)
-- 📦 Order management system
-- 💰 Complete checkout flow
-- 📱 Fully responsive design
-- 🎨 Modern gradient UI with smooth animations
+✨ **Características Principales**
+- 🛍️ Explora catálogo de perfumes con tarjetas de producto
+- 🛒 Carrito de compras con funcionalidad completa (agregar/eliminar/actualizar)
+- 👤 Autenticación de usuarios (Registro / Inicio de sesión)
+- 📦 Sistema de gestión de pedidos
+- 💰 Flujo de compra completo
+- 📱 Diseño completamente responsivo
+- 🎨 Interfaz elegante con diseño de lujo en oro y azul
+- 🌐 Soporte multiidioma (Español e Inglés)
 
-## Tech Stack
+## Stack Tecnológico
 
-- **Frontend**: React 19 with Vite
+- **Frontend**: React 19 con Vite
 - **Backend**: Supabase (PostgreSQL + Auth)
-- **Routing**: React Router DOM
-- **Styling**: CSS3 with responsive design
-- **API Client**: Supabase JS SDK
+- **Enrutamiento**: React Router DOM
+- **Estilos**: CSS3 con diseño responsivo
+- **Cliente API**: Supabase JS SDK
+- **Internacionalización**: Sistema de traducción personalizado
 
-## Project Structure
+## Estructura del Proyecto
 
 ```
 src/
-├── components/          # Reusable UI components
-│   ├── Navbar.jsx      # Navigation header
+├── components/              # Componentes UI reutilizables
+│   ├── Navbar.jsx          # Barra de navegación
 │   ├── Navbar.css
-│   ├── ProductCard.jsx # Product display card
-│   └── ProductCard.css
-├── pages/              # Page components
-│   ├── Home.jsx        # Landing page
+│   ├── ProductCard.jsx     # Tarjeta de producto
+│   ├── ProductCard.css
+│   ├── Footer.jsx          # Pie de página
+│   └── Footer.css
+├── pages/                   # Componentes de páginas
+│   ├── Home.jsx            # Página de inicio
 │   ├── Home.css
-│   ├── Products.jsx    # Product listing
+│   ├── Products.jsx        # Listado de productos
 │   ├── Products.css
-│   ├── Cart.jsx        # Shopping cart
+│   ├── ProductDetail.jsx   # Detalle de producto
+│   ├── ProductDetail.css
+│   ├── Cart.jsx            # Carrito de compras
 │   └── Cart.css
-├── context/            # React Context providers
-│   ├── AuthContext.jsx # Authentication state
-│   └── CartContext.jsx # Shopping cart state
-├── services/           # API & business logic
-│   └── supabase.js     # Supabase client & service functions
+├── context/                 # Proveedores de React Context
+│   ├── AuthContext.jsx     # Estado de autenticación
+│   ├── CartContext.jsx     # Estado del carrito
+│   └── LanguageContext.jsx # Estado del idioma
+├── services/                # Lógica de negocio y API
+│   └── supabase.js         # Cliente y funciones de Supabase
+├── translations.js          # Diccionario de traducción (ES/EN)
 ├── App.jsx
 ├── App.css
 └── main.jsx
 ```
 
-## Getting Started
+## Primeros Pasos
 
-### Prerequisites
-- Node.js 16+ and npm
-- A Supabase account (free tier available at [supabase.com](https://supabase.com))
+### Requisitos Previos
+- Node.js 16+ y npm
+- Una cuenta de Supabase (nivel gratuito disponible en [supabase.com](https://supabase.com))
 
-### Installation
+### Instalación
 
-1. **Clone or navigate to the project**
+1. **Clonar o navegar al proyecto**
    ```bash
    cd Proyecto
    ```
 
-2. **Install dependencies**
+2. **Instalar dependencias**
    ```bash
    npm install
    ```
 
-3. **Set up Supabase**
-   - Create a new project at [supabase.com](https://supabase.com)
-   - Get your `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`
-   - See [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) for table setup
+3. **Configurar Supabase**
+   - Crea un nuevo proyecto en [supabase.com](https://supabase.com)
+   - Obtén tu `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`
+   - Ver [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) para la configuración de tablas
 
-4. **Configure environment variables**
+4. **Configurar variables de entorno**
    ```bash
-   # Copy .env.example to .env.local
+   # Copia .env.example a .env.local
    cp .env.example .env.local
    
-   # Edit .env.local with your Supabase credentials
-   VITE_SUPABASE_URL=your_url_here
-   VITE_SUPABASE_ANON_KEY=your_key_here
+   # Edita .env.local con tus credenciales de Supabase
+   VITE_SUPABASE_URL=tu_url_aqui
+   VITE_SUPABASE_ANON_KEY=tu_clave_aqui
    ```
 
-5. **Run the development server**
+5. **Ejecutar el servidor de desarrollo**
    ```bash
    npm run dev
    ```
-   The site will open at `http://localhost:5173`
+   El sitio se abrirá en `http://localhost:5173`
 
-## Available Scripts
+## Scripts Disponibles
 
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build locally
-- `npm run lint` - Run ESLint
+- `npm run dev` - Inicia servidor de desarrollo
+- `npm run build` - Construye para producción
+- `npm run preview` - Vista previa de construcción de producción localmente
+- `npm run lint` - Ejecuta ESLint
 
-## Database Setup
+## Configuración de Base de Datos
 
-See [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) for:
-- Complete SQL table definitions
-- RLS policies recommendations
+Ver [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) para:
+- Definiciones completas de tablas SQL
+- Recomendaciones de políticas RLS
 - Example data insertion queries
 
 ## Components Overview
