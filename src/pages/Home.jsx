@@ -6,9 +6,12 @@ import './Home.css';
 const Home = () => {
   const { t } = useContext(LanguageContext);
 
+  const bannerUrl = 'https://irkioorwigmlvzkmopfp.supabase.co/storage/v1/object/public/images/paris_hilton_banner_0dd9e5b2-c79b-4eb0-90bc-0b92de373dac.webp';
+
   return (
     <div className="home-page">
-      <section className="hero">
+      <section className="hero" style={{ backgroundImage: `url(${bannerUrl})` }}>
+        <div className="hero-overlay"></div>
         <div className="hero-content">
           <h1>{t('home.titulo')}</h1>
           <p>{t('home.subtitulo')}</p>

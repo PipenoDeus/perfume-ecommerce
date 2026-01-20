@@ -3,12 +3,28 @@
 }
 
 .hero {
-  background: linear-gradient(135deg, #1e5a96 0%, #2d7ab5 100%);
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   color: white;
   padding: 5rem 2rem;
   text-align: center;
   position: relative;
   overflow: hidden;
+  min-height: 600px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1;
 }
 
 .hero::before {
@@ -20,6 +36,7 @@
   height: 500px;
   background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
   border-radius: 50%;
+  z-index: 0;
 }
 
 .hero-content {
