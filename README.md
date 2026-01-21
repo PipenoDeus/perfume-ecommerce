@@ -1,4 +1,4 @@
-# SILK PERFUMES - Tienda de Perfumes E-Commerce
+# PERFUMES - Tienda de Perfumes E-Commerce
 
 Una tienda de perfumes moderna y completamente funcional construida con React, Vite y Supabase.
 
