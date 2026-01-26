@@ -2,6 +2,15 @@
   min-height: 100vh;
 }
 
+@keyframes fadeInDark {
+  from {
+    background-color: rgba(0, 0, 0, 0);
+  }
+  to {
+    background-color: rgba(0, 0, 0, 0.75);
+  }
+}
+
 .hero {
   background-size: cover;
   background-position: center;
@@ -24,6 +33,7 @@
   bottom: 0;
   background: rgba(0, 0, 0, 0.75);
   z-index: 1;
+  animation: fadeInDark 1.5s ease-in-out forwards;
 }
 
 .hero::before {

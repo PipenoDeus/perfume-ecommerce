@@ -1,4 +1,4 @@
-# SILK PERFUMES - Tienda de Perfumes E-Commerce
+# PerfumesDemo - Tienda de Perfumes E-Commerce
 
 Una tienda de perfumes moderna y completamente funcional construida con React, Vite y Supabase.
 
@@ -11,7 +11,7 @@ Una tienda de perfumes moderna y completamente funcional construida con React, V
 - 📦 Sistema de gestión de pedidos
 - 💰 Flujo de compra completo
 - 📱 Diseño completamente responsivo
-- 🎨 Interfaz elegante con diseño de lujo en oro y azul
+- 🎨 Interfaz elegante con diseño moderno en oro y azul
 - 🌐 Soporte multiidioma (Español e Inglés)
 
 ## Stack Tecnológico

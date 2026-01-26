@@ -1,0 +1,56 @@
+.protected-route-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  padding: 20px;
+}
+
+.protected-route-message {
+  background: white;
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  max-width: 500px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.protected-route-message h2 {
+  color: #333;
+  margin-bottom: 15px;
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+}
+
+.protected-route-message p {
+  color: #666;
+  margin-bottom: 10px;
+  line-height: 1.6;
+  font-family: 'Poppins', sans-serif;
+}
+
+.protected-route-message.access-denied h2 {
+  color: #d32f2f;
+}
+
+.protected-route-message .btn {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 12px 30px;
+  background: #d4af37;
+  color: #000;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  font-family: 'Poppins', sans-serif;
+  border: none;
+  cursor: pointer;
+}
+
+.protected-route-message .btn:hover {
+  background: #c19b1a;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4);
+}
