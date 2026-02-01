@@ -12,20 +12,12 @@ lerna-debug.log*
 .env.*
 !.env.example
 
-node_modules
-dist
-dist-ssr
-*.local
+# Database setup scripts (security - don't expose DB structure)
+*.sql
+!schema.sql
+run-sql.js
+set-role.js
 
-# Vite cache
-.vite/
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
 *.ntvs*
 *.njsproj
 *.sln
