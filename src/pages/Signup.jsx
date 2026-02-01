@@ -33,7 +33,6 @@ const Signup = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    console.log('[Signup] Iniciando registro...');
 
     try {
       const { name, email, phone, address, city, postalCode, password, confirmPassword } = formData;
@@ -55,8 +54,6 @@ const Signup = () => {
         throw new Error('Por favor ingresa un email válido');
       }
 
-      console.log('[Signup] Llamando a supabase.auth.signUp...');
-
       // Crear usuario en Supabase Auth (no esperar respuesta)
       supabase.auth.signUp({
         email,
@@ -71,7 +68,6 @@ const Signup = () => {
           }
         }
       }).then(({ data, error }) => {
-        console.log('[Signup] signUp completado:', { user: data?.user?.id, error });
         if (error) {
           setError(error.message || 'Error al registrarse');
           setLoading(false);
@@ -80,13 +76,11 @@ const Signup = () => {
 
       // Navegar después de 1 segundo (tiempo para que se cree la sesión)
       setTimeout(() => {
-        console.log('[Signup] Navegando a home...');
         setLoading(false);
         navigate('/');
       }, 1000);
       
     } catch (err) {
-      console.error('[Signup] Error en registro:', err);
       setError(err.message || 'Error al registrarse');
       setLoading(false);
     }

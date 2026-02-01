@@ -23,7 +23,6 @@ export const uploadImage = async (bucketName, file, filePath) => {
     const publicUrl = getImageUrl(bucketName, data.path);
     return publicUrl;
   } catch (error) {
-    console.error('Error uploading image:', error.message);
     throw error;
   }
 };
@@ -38,7 +37,6 @@ export const deleteImage = async (bucketName, filePath) => {
     if (error) throw error;
     return true;
   } catch (error) {
-    console.error('Error deleting image:', error.message);
     throw error;
   }
 };
@@ -53,7 +51,6 @@ export const listImages = async (bucketName, folderPath = '') => {
     if (error) throw error;
     return data;
   } catch (error) {
-    console.error('Error listing images:', error.message);
     throw error;
   }
 };

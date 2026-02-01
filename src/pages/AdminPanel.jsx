@@ -91,13 +91,10 @@ const AdminPanel = () => {
 
       // Si subieron archivo, subir a Storage
       if (file) {
-        console.log('[AdminPanel] uploading file:', file);
         try {
           const { publicUrl } = await perfumeService.uploadPerfumeImage(file);
-          console.log('[AdminPanel] upload returned publicUrl:', publicUrl);
           imageUrl = publicUrl;
         } catch (uploadErr) {
-          console.error('[AdminPanel] upload error:', uploadErr);
           throw uploadErr;
         }
       }

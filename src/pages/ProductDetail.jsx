@@ -26,7 +26,6 @@ const ProductDetail = () => {
       setPerfume(data);
     } catch (err) {
       setError(t('productDetail.productoNoEncontrado'));
-      console.error('Error fetching perfume:', err);
     } finally {
       setLoading(false);
     }

@@ -62,32 +62,22 @@ export const perfumeService = {
   // Upload image to Supabase Storage 'perfumes' bucket
   async uploadPerfumeImage(file) {
     try {
-      console.log('[uploadPerfumeImage] file:', file);
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      console.log('[uploadPerfumeImage] uploading to path:', filePath);
-
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from('perfumes')
         .upload(filePath, file);
 
-      console.log('[uploadPerfumeImage] upload response data:', data, 'error:', error);
-
       if (error) throw error;
 
-      const { data: publicData, error: publicError } = supabase.storage
+      const { data: publicData } = supabase.storage
         .from('perfumes')
         .getPublicUrl(filePath);
 
-      if (publicError) console.warn('[uploadPerfumeImage] getPublicUrl error:', publicError);
-
-      console.log('[uploadPerfumeImage] public url:', publicData.publicUrl);
-
       return { publicUrl: publicData.publicUrl, path: filePath };
     } catch (err) {
-      console.error('[uploadPerfumeImage] error:', err);
       throw err;
     }
   },

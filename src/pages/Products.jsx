@@ -27,7 +27,6 @@ const Products = () => {
       setCategories(uniqueCategories);
     } catch (err) {
       setError(t('products.error'));
-      console.error('Error fetching perfumes:', err);
     } finally {
       setLoading(false);
     }

@@ -10,19 +10,11 @@ const Navbar = ({ cartCount }) => {
   const { t, toggleLanguage, language } = useContext(LanguageContext);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  console.log('[Navbar] Current userRole:', userRole);
-
   const handleLogout = async () => {
-    try {
-      console.log('[Navbar] Logout clicked');
-      if (isLoggingOut) return;
-      setShowUserMenu(false);
-      navigate('/');
-      logout();
-      console.log('[Navbar] Logout completed');
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error);
-    }
+    if (isLoggingOut) return;
+    setShowUserMenu(false);
+    navigate('/');
+    logout();
   };
 
 
