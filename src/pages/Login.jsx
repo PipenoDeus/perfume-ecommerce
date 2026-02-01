@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { LanguageContext } from '../context/LanguageContext';
@@ -7,12 +7,21 @@ import './Auth.css';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { setUser, fetchUserRole } = useContext(AuthContext);
+  const { user, loading: authLoading, setUser, fetchUserRole } = useContext(AuthContext);
   const { t } = useContext(LanguageContext);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setLoading(false);
+      navigate('/');
+    } else if (!authLoading) {
+      setLoading(false);
+    }
+  }, [authLoading, user, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -24,13 +33,14 @@ const Login = () => {
         throw new Error('Por favor completa todos los campos');
       }
 
-      const { session } = await authService.signIn(email, password);
-      
-      if (session?.user) {
-        setUser(session.user);
-        // Obtener el rol del usuario
-        await fetchUserRole(session.user.id);
-        navigate('/');
+      const { session, error } = await authService.signIn(email, password);
+      if (error) throw error;
+
+      const currentUser = session?.user || (await authService.getCurrentUser());
+      if (currentUser) {
+        setUser(currentUser);
+        // Obtener el rol del usuario sin bloquear la navegación
+        fetchUserRole(currentUser.id);
       }
     } catch (err) {
       setError(err.message || 'Error al iniciar sesión');

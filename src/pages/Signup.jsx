@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { LanguageContext } from '../context/LanguageContext';
@@ -7,7 +7,6 @@ import './Auth.css';
 
 const Signup = () => {
   const navigate = useNavigate();
-  const { setUser } = useContext(AuthContext);
   const { t } = useContext(LanguageContext);
   const [formData, setFormData] = useState({
     name: '',
@@ -34,6 +33,7 @@ const Signup = () => {
     e.preventDefault();
     setError('');
     setLoading(true);
+    console.log('[Signup] Iniciando registro...');
 
     try {
       const { name, email, phone, address, city, postalCode, password, confirmPassword } = formData;
@@ -55,8 +55,10 @@ const Signup = () => {
         throw new Error('Por favor ingresa un email válido');
       }
 
-      // Crear usuario en Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      console.log('[Signup] Llamando a supabase.auth.signUp...');
+
+      // Crear usuario en Supabase Auth (no esperar respuesta)
+      supabase.auth.signUp({
         email,
         password,
         options: {
@@ -68,17 +70,24 @@ const Signup = () => {
             postal_code: postalCode || null,
           }
         }
+      }).then(({ data, error }) => {
+        console.log('[Signup] signUp completado:', { user: data?.user?.id, error });
+        if (error) {
+          setError(error.message || 'Error al registrarse');
+          setLoading(false);
+        }
       });
 
-      if (authError) throw authError;
-
-      if (authData.user) {
-        setUser(authData.user);
+      // Navegar después de 1 segundo (tiempo para que se cree la sesión)
+      setTimeout(() => {
+        console.log('[Signup] Navegando a home...');
+        setLoading(false);
         navigate('/');
-      }
+      }, 1000);
+      
     } catch (err) {
+      console.error('[Signup] Error en registro:', err);
       setError(err.message || 'Error al registrarse');
-    } finally {
       setLoading(false);
     }
   };

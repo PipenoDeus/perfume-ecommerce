@@ -22,8 +22,8 @@ const ProtectedAdminRoute = ({ children }) => {
     return <Navigate to="/login" replace />;
   }
 
-  // Si el rol no es administrador ni dueño, mostrar acceso denegado
-  if (userRole !== 'administrador' && userRole !== 'dueño') {
+  // Si el rol no es admin ni dueño, mostrar acceso denegado
+  if (userRole !== 'admin' && userRole !== 'dueño') {
     return (
       <div className="protected-route-container">
         <div className="protected-route-message access-denied">

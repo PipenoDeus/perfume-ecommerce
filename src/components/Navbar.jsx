@@ -2,25 +2,29 @@ import React, { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { LanguageContext } from '../context/LanguageContext';
-import { authService } from '../services/supabase';
 import './Navbar.css';
 
-const Navbar = ({ user, cartCount }) => {
+const Navbar = ({ cartCount }) => {
   const navigate = useNavigate();
-  const { userRole, logout } = useContext(AuthContext);
+  const { user, userRole, logout, isLoggingOut } = useContext(AuthContext);
   const { t, toggleLanguage, language } = useContext(LanguageContext);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
+  console.log('[Navbar] Current userRole:', userRole);
+
   const handleLogout = async () => {
     try {
-      await authService.signOut();
-      logout();
+      console.log('[Navbar] Logout clicked');
+      if (isLoggingOut) return;
       setShowUserMenu(false);
       navigate('/');
+      logout();
+      console.log('[Navbar] Logout completed');
     } catch (error) {
       console.error('Error al cerrar sesión:', error);
     }
   };
+
 
   return (
     <nav className="navbar">
@@ -39,13 +43,13 @@ const Navbar = ({ user, cartCount }) => {
               {t('nav.carrito')} ({cartCount})
             </Link>
           </li>
-          {userRole === 'administrador' && (
-            <li className="nav-item">
-              <Link to="/admin" className="nav-link nav-admin">
-                📊 Admin
-              </Link>
-            </li>
-          )}
+          {userRole === 'admin' && (
+              <li className="nav-item">
+                <Link to="/admin" className="nav-link nav-admin">
+                  📊 Admin
+                </Link>
+              </li>
+            )}
           {userRole === 'dueño' && (
             <>
               <li className="nav-item">
@@ -71,7 +75,7 @@ const Navbar = ({ user, cartCount }) => {
               {showUserMenu && (
                 <div className="user-menu-dropdown">
                   <button onClick={handleLogout} className="user-menu-item">
-                    Cerrar Sesión
+                    {isLoggingOut ? 'Cerrando...' : 'Cerrar Sesión'}
                   </button>
                 </div>
               )}

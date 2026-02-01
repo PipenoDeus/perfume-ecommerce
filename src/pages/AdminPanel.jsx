@@ -23,6 +23,9 @@ const AdminPanel = () => {
     category: '',
     stock: '',
   });
+  const [file, setFile] = useState(null);
+  const [filePreview, setFilePreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   // Cargar perfumes
   useEffect(() => {
@@ -49,17 +52,72 @@ const AdminPanel = () => {
     }));
   };
 
+  // Parse a CLP-style string like "1.234,56" or "1.000" or "1000" to a number
+  const parseCLPPrice = (str) => {
+    if (str === null || str === undefined) return NaN;
+    const s = String(str).trim();
+    if (s === '') return NaN;
+    // Remove thousand separators (dots), replace decimal comma with dot
+    const cleaned = s.replace(/\./g, '').replace(',', '.');
+    const n = parseFloat(cleaned);
+    return Number.isFinite(n) ? n : NaN;
+  };
+
+  const formatPriceForInput = (val) => {
+    if (val === null || val === undefined || val === '') return '';
+    const num = Number(val);
+    if (Number.isNaN(num)) return String(val);
+    // Use locale string without currency symbol, with up to 2 decimals if needed
+    const hasFraction = Math.abs(num - Math.trunc(num)) > 0;
+    return num.toLocaleString('es-CL', { minimumFractionDigits: hasFraction ? 2 : 0, maximumFractionDigits: 2 });
+  };
+
+  const formatCLPDisplay = (val) => {
+    if (val === null || val === undefined || val === '') return '';
+    const num = Number(val);
+    if (Number.isNaN(num)) return String(val);
+    return `$${num.toLocaleString('es-CL', { maximumFractionDigits: 0 })}`;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
 
     try {
+      setUploading(true);
+
+      let imageUrl = formData.image_url;
+
+      // Si subieron archivo, subir a Storage
+      if (file) {
+        console.log('[AdminPanel] uploading file:', file);
+        try {
+          const { publicUrl } = await perfumeService.uploadPerfumeImage(file);
+          console.log('[AdminPanel] upload returned publicUrl:', publicUrl);
+          imageUrl = publicUrl;
+        } catch (uploadErr) {
+          console.error('[AdminPanel] upload error:', uploadErr);
+          throw uploadErr;
+        }
+      }
+
+      const parsedPrice = parseCLPPrice(formData.price);
+      if (Number.isNaN(parsedPrice)) {
+        throw new Error('Precio inválido');
+      }
+
+      const stockClean = String(formData.stock || '').replace(/\./g, '');
+      if (!/^\d+$/.test(stockClean)) {
+        throw new Error('Stock inválido (usa solo números)');
+      }
+
       const perfumeData = {
         ...formData,
-        price: parseFloat(formData.price),
-        stock: parseInt(formData.stock),
-      };
+        image_url: imageUrl || null,
+        price: parsedPrice,
+        stock: parseInt(stockClean, 10),
+      }; 
 
       if (editingId) {
         // Actualizar
@@ -81,10 +139,14 @@ const AdminPanel = () => {
         category: '',
         stock: '',
       });
+      setFile(null);
+      setFilePreview(null);
       setShowForm(false);
       loadPerfumes();
     } catch (err) {
       setError('Error: ' + err.message);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -92,12 +154,14 @@ const AdminPanel = () => {
     setFormData({
       name: perfume.name,
       brand: perfume.brand,
-      price: perfume.price.toString(),
-      description: perfume.description,
-      image_url: perfume.image_url,
-      category: perfume.category,
-      stock: perfume.stock.toString(),
+      price: formatPriceForInput(perfume.price) || '',
+      description: perfume.description || '',
+      image_url: perfume.image_url || '',
+      category: perfume.category || '',
+      stock: perfume.stock?.toString() || '',
     });
+    setFile(null);
+    setFilePreview(perfume.image_url || null);
     setEditingId(perfume.id);
     setShowForm(true);
   };
@@ -176,11 +240,13 @@ const AdminPanel = () => {
                 <div className="form-group">
                   <label>Precio *</label>
                   <input
-                    type="number"
+                    type="text"
                     name="price"
+                    inputMode="decimal"
                     value={formData.price}
                     onChange={handleInputChange}
-                    step="0.01"
+                    onBlur={(e) => setFormData(prev => ({ ...prev, price: formatPriceForInput(e.target.value) }))}
+                    placeholder="1.000"
                     required
                   />
                 </div>
@@ -188,10 +254,12 @@ const AdminPanel = () => {
                 <div className="form-group">
                   <label>Stock *</label>
                   <input
-                    type="number"
+                    type="text"
                     name="stock"
+                    inputMode="numeric"
                     value={formData.stock}
                     onChange={handleInputChange}
+                    placeholder="0"
                     required
                   />
                 </div>
@@ -199,19 +267,14 @@ const AdminPanel = () => {
 
               <div className="form-group">
                 <label>Categoría *</label>
-                <select
+                <input
+                  type="text"
                   name="category"
                   value={formData.category}
                   onChange={handleInputChange}
+                  placeholder="Arabe"
                   required
-                >
-                  <option value="">Selecciona una categoría</option>
-                  <option value="floral">Floral</option>
-                  <option value="oriental">Oriental</option>
-                  <option value="frutal">Frutal</option>
-                  <option value="aromático">Aromático</option>
-                  <option value="amaderado">Amaderado</option>
-                </select>
+                />
               </div>
 
               <div className="form-group">
@@ -226,20 +289,26 @@ const AdminPanel = () => {
               </div>
 
               <div className="form-group">
-                <label>URL de Imagen *</label>
+                <label>Imagen *</label>
                 <input
-                  type="url"
-                  name="image_url"
-                  value={formData.image_url}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="https://..."
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const selected = e.target.files[0];
+                    setFile(selected);
+                    setFilePreview(selected ? URL.createObjectURL(selected) : null);
+                  }}
                 />
+                {filePreview && (
+                  <div className="image-preview">
+                    <img src={filePreview} alt="Preview" />
+                  </div>
+                )}
               </div>
 
               <div className="form-actions">
-                <button type="submit" className="btn btn-success">
-                  {editingId ? 'Actualizar' : 'Crear'}
+                <button type="submit" className="btn btn-success" disabled={uploading}>
+                  {uploading ? (editingId ? 'Actualizando...' : 'Creando...') : (editingId ? 'Actualizar' : 'Crear')}
                 </button>
                 <button
                   type="button"
@@ -264,6 +333,7 @@ const AdminPanel = () => {
               <table>
                 <thead>
                   <tr>
+                    <th>Imagen</th>
                     <th>Nombre</th>
                     <th>Marca</th>
                     <th>Categoría</th>
@@ -275,10 +345,15 @@ const AdminPanel = () => {
                 <tbody>
                   {perfumes.map(perfume => (
                     <tr key={perfume.id}>
+                      <td className="product-cell">
+                        {perfume.image_url && (
+                          <img src={perfume.image_url} alt={perfume.name} className="product-thumb" />
+                        )}
+                      </td>
                       <td>{perfume.name}</td>
                       <td>{perfume.brand}</td>
                       <td>{perfume.category}</td>
-                      <td>${perfume.price}</td>
+                      <td>{formatCLPDisplay(perfume.price)}</td>
                       <td>{perfume.stock}</td>
                       <td className="actions">
                         <button

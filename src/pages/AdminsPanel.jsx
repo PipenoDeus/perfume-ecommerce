@@ -25,7 +25,7 @@ const AdminsPanel = () => {
       const { data, error: err } = await supabase
         .from('users')
         .select('id, email, full_name, phone, city, role, created_at')
-        .eq('role', 'administrador')
+        .eq('role', 'admin')
         .order('created_at', { ascending: false });
 
       if (err) throw err;
@@ -43,11 +43,11 @@ const AdminsPanel = () => {
       setSuccess(null);
       const { error: err } = await supabase
         .from('users')
-        .update({ role: 'administrador' })
+        .update({ role: 'admin' })
         .eq('id', userId);
 
       if (err) throw err;
-      setSuccess('Usuario promovido a administrador');
+      setSuccess('Usuario promovido a admin');
       loadAdmins();
     } catch (err) {
       setError('Error: ' + err.message);
@@ -90,18 +90,18 @@ const AdminsPanel = () => {
 
       if (searchErr) throw new Error('Usuario no encontrado');
 
-      if (users.role === 'administrador') {
-        throw new Error('Este usuario ya es administrador');
+      if (users.role === 'admin') {
+        throw new Error('Este usuario ya es admin');
       }
 
       // Promover a admin
       const { error: updateErr } = await supabase
         .from('users')
-        .update({ role: 'administrador' })
+        .update({ role: 'admin' })
         .eq('id', users.id);
 
       if (updateErr) throw updateErr;
-      setSuccess(`${searchEmail} ahora es administrador`);
+      setSuccess(`${searchEmail} ahora es admin`);
       setSearchEmail('');
       setShowForm(false);
       loadAdmins();
