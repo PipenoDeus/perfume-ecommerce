@@ -1,7 +1,8 @@
-import { useContext } from 'react';
+import { useContext, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { AuthContext } from './context/AuthContext';
 import { CartContext } from './context/CartContext';
+import { initializeCSRF } from './services/csrfService';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ProtectedAdminRoute from './components/ProtectedAdminRoute';
@@ -19,6 +20,11 @@ import './App.css';
 function AppContent() {
   const { user } = useContext(AuthContext);
   const { cart } = useContext(CartContext);
+
+  // Initialize CSRF token on app load
+  useEffect(() => {
+    initializeCSRF();
+  }, []);
 
   return (
     <>

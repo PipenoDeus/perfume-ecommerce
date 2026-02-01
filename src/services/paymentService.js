@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { getCSRFToken } from './csrfService';
 
 const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
 
@@ -14,11 +15,14 @@ export const orderService = {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
+    const csrfToken = await getCSRFToken();
+
     const response = await fetch(`${API_URL}/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'X-CSRF-Token': csrfToken
       },
       body: JSON.stringify({ items, shippingAddress })
     });
@@ -76,11 +80,14 @@ export const paymentService = {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
+    const csrfToken = await getCSRFToken();
+
     const response = await fetch(`${API_URL}/payments/create-session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'X-CSRF-Token': csrfToken
       },
       body: JSON.stringify({ orderId, paymentMethod })
     });
@@ -98,11 +105,14 @@ export const paymentService = {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
+    const csrfToken = await getCSRFToken();
+
     const response = await fetch(`${API_URL}/payments/confirm-bank`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'X-CSRF-Token': csrfToken
       },
       body: JSON.stringify({ orderId, transactionId })
     });

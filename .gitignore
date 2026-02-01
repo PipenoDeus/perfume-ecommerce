@@ -7,7 +7,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Env files (IMPORTANT)
+# Env files (IMPORTANT - NEVER COMMIT SECRETS)
 .env
 .env.*
 !.env.example
@@ -18,7 +18,42 @@ lerna-debug.log*
 run-sql.js
 set-role.js
 
+# Node modules
+node_modules/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sensitive files
+*.pem
+*.key
+*.pfx
+*.p12
+audit-logs.json
+payment-logs.json
+
+# Dependencies
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Build outputs
+/dist
+/build
+/.next
+/out
+
+# Temporary files
+*.tmp
+tmp/
+temp/

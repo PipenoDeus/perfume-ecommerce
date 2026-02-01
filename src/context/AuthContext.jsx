@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import { authService, supabase } from '../services/supabase';
+import { clearCSRFToken } from '../services/csrfService';
 
 export const AuthContext = createContext();
 
@@ -67,6 +68,8 @@ export const AuthProvider = ({ children }) => {
     // Update UI immediately
     setUser(null);
     setUserRole(null);
+    // Clear CSRF token
+    clearCSRFToken();
     try {
       // Local signOut is fast, but add a timeout to avoid hanging UI
       const signOutPromise = supabase.auth.signOut({ scope: 'local' });
