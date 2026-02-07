@@ -6,6 +6,8 @@ import './ProtectedAdminRoute.css';
 const ProtectedAdminRoute = ({ children }) => {
   const { user, userRole, loading } = useContext(AuthContext);
 
+  console.log('ProtectedAdminRoute - user:', user?.email, 'role:', userRole, 'loading:', loading);
+
   // Mientras se verifica la autenticación
   if (loading) {
     return (
@@ -20,6 +22,17 @@ const ProtectedAdminRoute = ({ children }) => {
   // Si no hay usuario, redirigir a login
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Si el rol está cargando (null pero hay usuario), esperar
+  if (userRole === null) {
+    return (
+      <div className="protected-route-container">
+        <div className="protected-route-message">
+          <h2>Cargando permisos...</h2>
+        </div>
+      </div>
+    );
   }
 
   // Si el rol no es admin ni dueño, mostrar acceso denegado

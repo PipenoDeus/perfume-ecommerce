@@ -25,6 +25,8 @@ export const AuthProvider = ({ children }) => {
       const { data, error } = await Promise.race([roleQuery, timeoutPromise]);
 
       if (error) {
+        console.error('Error fetching role:', error);
+        
         // Si el usuario no existe en public.users, crear un registro por defecto
         if (error.code === 'PGRST116') {
           const { data: userData } = await supabase.auth.getUser();
@@ -45,20 +47,24 @@ export const AuthProvider = ({ children }) => {
                 role: 'cliente'
               });
 
-            setUserRole(insertError ? 'cliente' : 'cliente');
-          } else {
-            setUserRole('cliente');
+            if (!insertError) {
+              setUserRole('cliente');
+            }
+            // Si hay error al insertar, mantener el rol actual (no cambiar a 'cliente')
           }
         } else if (error.code === 'TIMEOUT') {
-          setUserRole('cliente');
-        } else {
-          setUserRole('cliente');
+          console.warn('Role fetch timeout - manteniendo rol actual');
+          // No cambiar el rol en caso de timeout
         }
+        // En otros casos, tampoco cambiar el rol
       } else {
-        setUserRole(data?.role || 'cliente');
+        const newRole = data?.role || 'cliente';
+        console.log('Rol obtenido:', newRole);
+        setUserRole(newRole);
       }
     } catch (error) {
-      setUserRole('cliente');
+      console.error('Error inesperado al obtener rol:', error);
+      // No cambiar el rol en caso de error inesperado
     }
   };
 
@@ -109,15 +115,25 @@ export const AuthProvider = ({ children }) => {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth event:', event); // Debug
+      
       const currentUser = session?.user ?? null;
       setUser(currentUser);
 
       if (currentUser) {
-        await fetchUserRole(currentUser.id);
+        // Solo recargar el rol si NO es un token refresh o si el rol es null
+        if (event === 'TOKEN_REFRESHED') {
+          console.log('Token refreshed - manteniendo rol actual');
+          // No hacer nada, mantener el rol actual
+        } else {
+          console.log('Recargando rol de usuario');
+          await fetchUserRole(currentUser.id);
+        }
       } else {
         setUserRole(null);
       }
+      
       setLoading(false);
     });
 
