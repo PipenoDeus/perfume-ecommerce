@@ -14,6 +14,17 @@ const ProductDetail = () => {
   const [error, setError] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
+  const [activeImage, setActiveImage] = useState('');
+
+  const formatCLP = (value) => {
+    const amount = Number(value || 0);
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      currencyDisplay: 'code',
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
 
   useEffect(() => {
     fetchPerfume();
@@ -39,6 +50,22 @@ const ProductDetail = () => {
     }
   };
 
+  const imageList = perfume?.image_urls?.length
+    ? perfume.image_urls
+    : (perfume?.image_url ? [perfume.image_url] : []);
+
+  useEffect(() => {
+    if (imageList.length > 0) {
+      setActiveImage(imageList[0]);
+    }
+  }, [perfume?.id]);
+
+  const genderLabel = {
+    hombre: t('productDetail.hombre'),
+    mujer: t('productDetail.mujer'),
+    unisex: t('productDetail.unisex')
+  }[perfume?.gender] || t('productDetail.unisex');
+
   if (loading) {
     return <div className="product-detail-loading">{t('products.cargando')}</div>;
   }
@@ -57,11 +84,27 @@ const ProductDetail = () => {
       <Link to="/products" className="back-link">← {t('productDetail.volver')}</Link>
 
       <div className="product-detail-container">
-        <div className="product-detail-image">
-          <img
-            src={perfume.image_url || 'https://via.placeholder.com/400'}
-            alt={perfume.name}
-          />
+        <div className="product-detail-media">
+          <div className="product-detail-image">
+            <img
+              src={activeImage || 'https://via.placeholder.com/400'}
+              alt={perfume.name}
+            />
+          </div>
+          {imageList.length > 1 && (
+            <div className="product-detail-thumbs">
+              {imageList.map((imageUrl) => (
+                <button
+                  key={imageUrl}
+                  type="button"
+                  className={`thumb-button ${activeImage === imageUrl ? 'active' : ''}`}
+                  onClick={() => setActiveImage(imageUrl)}
+                >
+                  <img src={imageUrl} alt={perfume.name} />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="product-detail-info">
@@ -78,7 +121,7 @@ const ProductDetail = () => {
           </div>
 
           <div className="product-detail-price">
-            <span className="price">${perfume.price}</span>
+            <span className="price">{formatCLP(perfume.price)}</span>
             {perfume.stock > 0 ? (
               <span className="stock">{t('productDetail.enStock')} ({perfume.stock} {t('productDetail.disponibles')})</span>
             ) : (
@@ -95,6 +138,10 @@ const ProductDetail = () => {
             <div className="detail-item">
               <span className="label">{t('productDetail.categoria')}:</span>
               <span className="value">{perfume.category || 'General'}</span>
+            </div>
+            <div className="detail-item">
+              <span className="label">{t('productDetail.genero')}:</span>
+              <span className="value">{genderLabel}</span>
             </div>
             <div className="detail-item">
               <span className="label">{t('productDetail.tipo')}:</span>

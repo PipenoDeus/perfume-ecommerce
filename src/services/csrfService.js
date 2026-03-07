@@ -8,7 +8,7 @@ let tokenExpiry = null;
  */
 export async function fetchCSRFToken() {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/csrf-token`, {
+    const response = await fetch(`${BACKEND_URL}/csrf-token`, {
       method: 'GET',
       credentials: 'include',
       headers: {
@@ -37,12 +37,7 @@ export async function fetchCSRFToken() {
  * Get the current CSRF token, fetching a new one if needed
  */
 export async function getCSRFToken() {
-  // If no token or token expired, fetch new one
-  if (!csrfToken || !tokenExpiry || Date.now() >= tokenExpiry) {
-    return await fetchCSRFToken();
-  }
-  
-  return csrfToken;
+  return await fetchCSRFToken();
 }
 
 /**

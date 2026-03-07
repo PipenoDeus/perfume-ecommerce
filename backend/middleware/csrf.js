@@ -30,8 +30,7 @@ export const validateCSRFToken = (req, res, next) => {
     return res.status(403).json({ error: 'Invalid or expired CSRF token' });
   }
 
-  // Remove used token
-  csrfTokens.delete(token);
+  // Keep token valid until expiry to support client-side caching
   
   next();
 };

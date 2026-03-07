@@ -9,8 +9,16 @@ const Products = () => {
   const [perfumes, setPerfumes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [categories, setCategories] = useState([]);
+  const [selectedBrand, setSelectedBrand] = useState('all');
+  const [brands, setBrands] = useState([]);
+
+  const normalizeBrand = (value) => String(value || '').trim().toLowerCase();
+  const formatBrand = (value) =>
+    normalizeBrand(value)
+      .split(' ')
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
 
   useEffect(() => {
     fetchPerfumes();
@@ -22,9 +30,15 @@ const Products = () => {
       const data = await perfumeService.getAllPerfumes();
       setPerfumes(data);
       
-      // Extract unique categories
-      const uniqueCategories = ['all', ...new Set(data.map(p => p.category).filter(Boolean))];
-      setCategories(uniqueCategories);
+      // Extract unique brands (case-insensitive)
+      const brandMap = new Map();
+      data.forEach((perfume) => {
+        const normalized = normalizeBrand(perfume.brand);
+        if (normalized && !brandMap.has(normalized)) {
+          brandMap.set(normalized, formatBrand(perfume.brand));
+        }
+      });
+      setBrands(['all', ...brandMap.values()]);
     } catch (err) {
       setError(t('products.error'));
     } finally {
@@ -32,9 +46,9 @@ const Products = () => {
     }
   };
 
-  const filteredPerfumes = selectedCategory === 'all'
+  const filteredPerfumes = selectedBrand === 'all'
     ? perfumes
-    : perfumes.filter((p) => p.category === selectedCategory);
+    : perfumes.filter((p) => normalizeBrand(p.brand) === normalizeBrand(selectedBrand));
 
   if (loading) return <div className="products-loading">{t('products.cargando')}</div>;
   if (error) return <div className="products-error">{error}</div>;
@@ -47,17 +61,17 @@ const Products = () => {
       </div>
 
       <div className="products-container">
-        {/* Category Filter */}
+        {/* Brand Filter */}
         <div className="category-filter">
-          <h3>{t('products.categorias')}</h3>
+          <h3>{t('products.marcas')}</h3>
           <div className="category-buttons">
-            {categories.map((category) => (
+            {brands.map((brand) => (
               <button
-                key={category}
-                className={`category-btn ${selectedCategory === category ? 'active' : ''}`}
-                onClick={() => setSelectedCategory(category)}
+                key={brand}
+                className={`category-btn ${selectedBrand === brand ? 'active' : ''}`}
+                onClick={() => setSelectedBrand(brand)}
               >
-                {category.charAt(0).toUpperCase() + category.slice(1)}
+                {brand === 'all' ? 'All' : brand}
               </button>
             ))}
           </div>

@@ -81,8 +81,13 @@ export const paymentService = {
     if (!token) throw new Error('Not authenticated');
 
     const csrfToken = await getCSRFToken();
+    const endpoint = `${API_URL}/payments/create-session`;
 
-    const response = await fetch(`${API_URL}/payments/create-session`, {
+    if (import.meta.env.DEV) {
+      console.log('[payments] create-session ->', endpoint);
+    }
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -93,8 +98,36 @@ export const paymentService = {
     });
 
     if (!response.ok) {
+      if (import.meta.env.DEV) {
+        console.warn('[payments] create-session failed', response.status);
+      }
       const error = await response.json();
       throw new Error(error.error || 'Failed to create payment session');
+    }
+
+    return response.json();
+  },
+
+  // Capture PayPal payment after return_url
+  async capturePayPalOrder(paypalOrderId) {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const csrfToken = await getCSRFToken();
+
+    const response = await fetch(`${API_URL}/payments/capture`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'X-CSRF-Token': csrfToken
+      },
+      body: JSON.stringify({ paypalOrderId })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to capture payment');
     }
 
     return response.json();

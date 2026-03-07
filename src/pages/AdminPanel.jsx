@@ -20,11 +20,13 @@ const AdminPanel = () => {
     price: '',
     description: '',
     image_url: '',
+    gender: 'unisex',
     category: '',
     stock: '',
   });
-  const [file, setFile] = useState(null);
-  const [filePreview, setFilePreview] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [imageUrls, setImageUrls] = useState([]);
   const [uploading, setUploading] = useState(false);
 
   // Cargar perfumes
@@ -87,16 +89,15 @@ const AdminPanel = () => {
     try {
       setUploading(true);
 
-      let imageUrl = formData.image_url;
+      let finalImageUrls = imageUrls;
 
-      // Si subieron archivo, subir a Storage
-      if (file) {
-        try {
-          const { publicUrl } = await perfumeService.uploadPerfumeImage(file);
-          imageUrl = publicUrl;
-        } catch (uploadErr) {
-          throw uploadErr;
+      if (selectedFiles.length > 0) {
+        const uploadedUrls = [];
+        for (const selectedFile of selectedFiles) {
+          const { publicUrl } = await perfumeService.uploadPerfumeImage(selectedFile);
+          uploadedUrls.push(publicUrl);
         }
+        finalImageUrls = uploadedUrls;
       }
 
       const parsedPrice = parseCLPPrice(formData.price);
@@ -111,7 +112,8 @@ const AdminPanel = () => {
 
       const perfumeData = {
         ...formData,
-        image_url: imageUrl || null,
+        image_urls: finalImageUrls,
+        image_url: finalImageUrls[0] || formData.image_url || null,
         price: parsedPrice,
         stock: parseInt(stockClean, 10),
       }; 
@@ -133,11 +135,13 @@ const AdminPanel = () => {
         price: '',
         description: '',
         image_url: '',
+        gender: 'unisex',
         category: '',
         stock: '',
       });
-      setFile(null);
-      setFilePreview(null);
+      setSelectedFiles([]);
+      setImagePreviews([]);
+      setImageUrls([]);
       setShowForm(false);
       loadPerfumes();
     } catch (err) {
@@ -148,17 +152,23 @@ const AdminPanel = () => {
   };
 
   const handleEdit = (perfume) => {
+    const existingImages = Array.isArray(perfume.image_urls) && perfume.image_urls.length > 0
+      ? perfume.image_urls
+      : (perfume.image_url ? [perfume.image_url] : []);
+
     setFormData({
       name: perfume.name,
       brand: perfume.brand,
       price: formatPriceForInput(perfume.price) || '',
       description: perfume.description || '',
       image_url: perfume.image_url || '',
+      gender: perfume.gender || 'unisex',
       category: perfume.category || '',
       stock: perfume.stock?.toString() || '',
     });
-    setFile(null);
-    setFilePreview(perfume.image_url || null);
+    setSelectedFiles([]);
+    setImagePreviews(existingImages);
+    setImageUrls(existingImages);
     setEditingId(perfume.id);
     setShowForm(true);
   };
@@ -184,9 +194,13 @@ const AdminPanel = () => {
       price: '',
       description: '',
       image_url: '',
+      gender: 'unisex',
       category: '',
       stock: '',
     });
+    setSelectedFiles([]);
+    setImagePreviews([]);
+    setImageUrls([]);
   };
 
   if (!user) {
@@ -275,6 +289,15 @@ const AdminPanel = () => {
               </div>
 
               <div className="form-group">
+                <label>Género *</label>
+                <select name="gender" value={formData.gender} onChange={handleInputChange} required>
+                  <option value="hombre">Hombre</option>
+                  <option value="mujer">Mujer</option>
+                  <option value="unisex">Unisex</option>
+                </select>
+              </div>
+
+              <div className="form-group">
                 <label>Descripción *</label>
                 <textarea
                   name="description"
@@ -286,19 +309,23 @@ const AdminPanel = () => {
               </div>
 
               <div className="form-group">
-                <label>Imagen *</label>
+                <label>Imágenes (hasta 6)</label>
+                <p className="form-hint">Tamaño recomendado: 800x1000 px (proporción 4:5)</p>
                 <input
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={(e) => {
-                    const selected = e.target.files[0];
-                    setFile(selected);
-                    setFilePreview(selected ? URL.createObjectURL(selected) : null);
+                    const files = Array.from(e.target.files || []).slice(0, 6);
+                    setSelectedFiles(files);
+                    setImagePreviews(files.map((file) => URL.createObjectURL(file)));
                   }}
                 />
-                {filePreview && (
-                  <div className="image-preview">
-                    <img src={filePreview} alt="Preview" />
+                {imagePreviews.length > 0 && (
+                  <div className="image-preview-grid">
+                    {imagePreviews.map((preview, index) => (
+                      <img src={preview} alt={`Preview ${index + 1}`} key={preview} />
+                    ))}
                   </div>
                 )}
               </div>
@@ -334,6 +361,7 @@ const AdminPanel = () => {
                     <th>Nombre</th>
                     <th>Marca</th>
                     <th>Categoría</th>
+                    <th>Género</th>
                     <th>Precio</th>
                     <th>Stock</th>
                     <th>Acciones</th>
@@ -343,13 +371,18 @@ const AdminPanel = () => {
                   {perfumes.map(perfume => (
                     <tr key={perfume.id}>
                       <td className="product-cell">
-                        {perfume.image_url && (
-                          <img src={perfume.image_url} alt={perfume.name} className="product-thumb" />
+                        {(perfume.image_urls?.[0] || perfume.image_url) && (
+                          <img
+                            src={perfume.image_urls?.[0] || perfume.image_url}
+                            alt={perfume.name}
+                            className="product-thumb"
+                          />
                         )}
                       </td>
                       <td>{perfume.name}</td>
                       <td>{perfume.brand}</td>
                       <td>{perfume.category}</td>
+                      <td>{perfume.gender || 'unisex'}</td>
                       <td>{formatCLPDisplay(perfume.price)}</td>
                       <td>{perfume.stock}</td>
                       <td className="actions">

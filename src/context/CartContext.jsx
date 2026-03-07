@@ -1,9 +1,16 @@
-import React, { createContext, useState } from 'react';
+import React, { createContext, useEffect, useState } from 'react';
 
 export const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(() => {
+    try {
+      const storedCart = localStorage.getItem('cart');
+      return storedCart ? JSON.parse(storedCart) : [];
+    } catch (error) {
+      return [];
+    }
+  });
 
   const addToCart = (perfume, quantity = 1) => {
     setCart((prevCart) => {
@@ -24,9 +31,17 @@ export const CartProvider = ({ children }) => {
   };
 
   const updateQuantity = (perfumeId, quantity) => {
+    const safeQuantity = Math.max(1, Number(quantity) || 1);
     setCart((prevCart) =>
       prevCart.map((item) =>
-        item.id === perfumeId ? { ...item, quantity } : item
+        item.id === perfumeId
+          ? {
+              ...item,
+              quantity: item.stock
+                ? Math.min(safeQuantity, item.stock)
+                : safeQuantity,
+            }
+          : item
       )
     );
   };
@@ -38,6 +53,14 @@ export const CartProvider = ({ children }) => {
   const getTotalPrice = () => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   };
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('cart', JSON.stringify(cart));
+    } catch (error) {
+      // Ignore localStorage errors
+    }
+  }, [cart]);
 
   const value = {
     cart,

@@ -9,6 +9,16 @@ const ProductCard = ({ perfume }) => {
   const { t } = useContext(LanguageContext);
   const [quantity, setQuantity] = useState(1);
 
+  const formatCLP = (value) => {
+    const amount = Number(value || 0);
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      currencyDisplay: 'code',
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
   const handleAddToCart = (e) => {
     e.preventDefault();
     addToCart(perfume, quantity);
@@ -20,7 +30,7 @@ const ProductCard = ({ perfume }) => {
       <div className="product-card">
         <div className="product-image">
           <img
-            src={perfume.image_url || 'https://via.placeholder.com/250'}
+            src={perfume.image_urls?.[0] || perfume.image_url || 'https://via.placeholder.com/250'}
             alt={perfume.name}
           />
         </div>
@@ -29,7 +39,7 @@ const ProductCard = ({ perfume }) => {
           <p className="product-brand">{perfume.brand}</p>
           <p className="product-description">{perfume.description}</p>
           <div className="product-footer">
-            <span className="product-price">${perfume.price}</span>
+            <span className="product-price">{formatCLP(perfume.price)}</span>
             <div className="product-actions" onClick={(e) => e.preventDefault()}>
               <input
                 type="number"
