@@ -62,18 +62,48 @@ const Cart = () => {
         throw new Error('Missing order ID');
       }
 
-      const session = await paymentService.createPaymentSession(order.id, paymentMethod);
-      setPaymentInfo(session);
+      // ===== WEBPAY =====
+      if (paymentMethod === 'webpay') {
+        const webpaySession = await paymentService.createWebpayTransaction(order.id);
 
-      if (paymentMethod === 'paypal' && session?.approvalUrl) {
-        window.location.href = session.approvalUrl;
+        if (!webpaySession?.url || !webpaySession?.token) {
+          throw new Error('Respuesta inválida de Webpay');
+        }
+
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = webpaySession.url;
+
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'token_ws';
+        input.value = webpaySession.token;
+
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
         return;
       }
 
+      // ===== PAYPAL =====
+      if (paymentMethod === 'paypal') {
+        const session = await paymentService.createPaymentSession(order.id, 'paypal');
+        if (session?.approvalUrl) {
+          window.location.href = session.approvalUrl;
+          return;
+        }
+        throw new Error('No se recibió URL de aprobación de PayPal');
+      }
+
+      // ===== BANCO U OTROS =====
+      const session = await paymentService.createPaymentSession(order.id, paymentMethod);
+      setPaymentInfo(session);
       setCheckoutSuccess(t('cart.ordenCreada'));
       clearCart();
       setShippingAddress({ address: '', city: '' });
+
     } catch (error) {
+      console.error('[Cart] handleCheckout error:', error);
       setCheckoutError(error.message || t('cart.errorCheckout'));
     } finally {
       setIsSubmitting(false);
@@ -184,6 +214,16 @@ const Cart = () => {
                     onChange={(e) => setPaymentMethod(e.target.value)}
                   />
                   {t('cart.metodoPaypal')}
+                </label>
+                <label className="payment-option">
+                  <input
+                    type="radio"
+                    name="paymentMethod"
+                    value="webpay"
+                    checked={paymentMethod === 'webpay'}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                  />
+                  {t('cart.metodoWebpay')}
                 </label>
                 <label className="payment-option">
                   <input

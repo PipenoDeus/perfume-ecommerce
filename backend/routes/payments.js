@@ -1,5 +1,6 @@
 import express from 'express';
 import axios from 'axios';
+import transbank from 'transbank-sdk';
 import { authenticateUser } from '../middleware/auth.js';
 import { getOrder, updateOrderStatus } from '../services/orderService.js';
 import {
@@ -10,17 +11,46 @@ import {
 import { encryptData } from '../services/encryptionService.js';
 import AuditLogger from '../services/auditLogger.js';
 
+const {
+  WebpayPlus,
+  Options,
+  Environment,
+  IntegrationCommerceCodes,
+  IntegrationApiKeys
+} = transbank;
+
 const router = express.Router();
+
+// ── Webpay: usar credenciales oficiales de integración o producción ──
+const isProduction = (process.env.WEBPAY_ENV || 'INTEGRATION') === 'PRODUCTION';
+
+const webpayOptions = isProduction
+  ? new Options(
+      process.env.WEBPAY_COMMERCE_CODE,
+      process.env.WEBPAY_API_KEY,
+      Environment.Production
+    )
+  : new Options(
+      IntegrationCommerceCodes.WEBPAY_PLUS,
+      IntegrationApiKeys.WEBPAY,
+      Environment.Integration
+    );
+
+console.log('[Webpay] Modo:', isProduction ? 'PRODUCCIÓN' : 'INTEGRACIÓN');
+console.log('[Webpay] Commerce Code:', isProduction
+  ? process.env.WEBPAY_COMMERCE_CODE
+  : IntegrationCommerceCodes.WEBPAY_PLUS
+);
+
+const webpayTx = new WebpayPlus.Transaction(webpayOptions);
+
 const PAYPAL_API = process.env.PAYPAL_MODE === 'live'
   ? 'https://api.paypal.com'
   : 'https://api.sandbox.paypal.com';
 
 const getFrontendBaseUrl = () => {
-  const origins = (process.env.FRONTEND_URL || 'http://localhost:5173')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
-  return origins[0] || 'http://localhost:5173';
+  const raw = process.env.FRONTEND_URL || 'http://localhost:5173';
+  return raw.split(',')[0].trim();
 };
 
 const getPayPalAccessToken = async () => {
@@ -93,6 +123,9 @@ const capturePayPalOrder = async (paypalOrderId) => {
 
   return response.data;
 };
+
+const isUuid = (value) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
 
 // Create payment session
 router.post('/create-session', authenticateUser, async (req, res) => {
@@ -193,6 +226,133 @@ router.post('/create-session', authenticateUser, async (req, res) => {
       details: error.message
     });
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Webpay Plus create transaction
+router.post('/webpay/create', authenticateUser, async (req, res) => {
+  try {
+    const { orderId } = req.body;
+
+    if (!orderId || !isUuid(orderId)) {
+      return res.status(400).json({ error: 'orderId inválido' });
+    }
+
+    const order = await getOrder(orderId);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.user_id !== req.user.id) return res.status(403).json({ error: 'Unauthorized' });
+    if (order.status !== 'pending') return res.status(400).json({ error: 'Order already processed' });
+
+    // Webpay constraints
+    const buyOrder = String(orderId).replace(/-/g, '').slice(-26); // <= 26
+    const sessionId = String(orderId); // UUID completo para recuperar orden real
+    const amount = Math.round(Number(order.total || 0)); // CLP entero
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({ error: 'Monto inválido para Webpay' });
+    }
+
+    const backendBaseUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+    const returnUrl = `${backendBaseUrl}/api/payments/webpay/return`;
+    const tx = await webpayTx.create(buyOrder, sessionId, amount, returnUrl);
+
+    return res.json({
+      url: tx.url,
+      token: tx.token,
+      buyOrder,
+      sessionId
+    });
+  } catch (error) {
+    console.error('[webpay/create] error message:', error?.message);
+    console.error('[webpay/create] status:', error?.response?.status);
+    console.error('[webpay/create] data:', error?.response?.data);
+    return res.status(500).json({ error: error?.message || 'Webpay create failed' });
+  }
+});
+
+// Webpay Plus commit transaction
+router.post('/webpay/commit', authenticateUser, async (req, res) => {
+  try {
+    const token = req.body?.token_ws || req.body?.token;
+    if (!token) return res.status(400).json({ error: 'token requerido' });
+
+    const result = await webpayTx.commit(token);
+    const orderId = result?.session_id; // UUID real
+    if (!orderId || !isUuid(orderId)) {
+      return res.status(400).json({ error: 'session_id inválido en respuesta Webpay' });
+    }
+
+    const order = await getOrder(orderId);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.user_id !== req.user.id) return res.status(403).json({ error: 'Unauthorized' });
+
+    const isAuthorized =
+      result?.status === 'AUTHORIZED' && result?.response_code === 0;
+
+    const transactionId =
+      result?.authorization_code ||
+      result?.buy_order ||
+      token;
+
+    await updateOrderStatus(orderId, isAuthorized ? 'paid' : 'failed', transactionId);
+
+    return res.json({
+      ok: true,
+      status: isAuthorized ? 'paid' : 'failed',
+      orderId,
+      transactionId,
+      result
+    });
+  } catch (error) {
+    console.error('[webpay/commit] error message:', error?.message);
+    console.error('[webpay/commit] status:', error?.response?.status);
+    console.error('[webpay/commit] data:', error?.response?.data);
+    return res.status(500).json({ error: error?.message || 'Webpay commit failed' });
+  }
+});
+
+// Endpoint puente: Webpay responde por POST, SPA no puede leer body directamente
+router.post('/webpay/return', async (req, res) => {
+  const { token_ws, TBK_TOKEN, TBK_ORDEN_COMPRA, TBK_ID_SESION } = req.body || {};
+
+  const frontend = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0];
+
+  if (token_ws) {
+    return res.redirect(`${frontend}/payment-success?provider=webpay&token_ws=${encodeURIComponent(token_ws)}`);
+  }
+
+  return res.redirect(
+    `${frontend}/payment-success?provider=webpay&TBK_TOKEN=${encodeURIComponent(TBK_TOKEN || '')}&TBK_ORDEN_COMPRA=${encodeURIComponent(TBK_ORDEN_COMPRA || '')}&TBK_ID_SESION=${encodeURIComponent(TBK_ID_SESION || '')}`
+  );
+});
+
+// Webpay return handler (éxito o cancelación)
+router.all('/webpay/return', async (req, res) => {
+  try {
+    const tokenWs = req.body?.token_ws || req.query?.token_ws;
+
+    const tbkToken = req.body?.TBK_TOKEN || req.query?.TBK_TOKEN;
+    const tbkOrder = req.body?.TBK_ORDEN_COMPRA || req.query?.TBK_ORDEN_COMPRA;
+    const tbkSession = req.body?.TBK_ID_SESION || req.query?.TBK_ID_SESION;
+
+    const frontend = getFrontendBaseUrl();
+
+    if (tokenWs) {
+      return res.redirect(
+        `${frontend}/payment-success?provider=webpay&token_ws=${encodeURIComponent(tokenWs)}`
+      );
+    }
+
+    if (tbkToken) {
+      return res.redirect(
+        `${frontend}/payment-cancelled?provider=webpay&TBK_TOKEN=${encodeURIComponent(tbkToken)}&TBK_ORDEN_COMPRA=${encodeURIComponent(tbkOrder || '')}&TBK_ID_SESION=${encodeURIComponent(tbkSession || '')}`
+      );
+    }
+
+    return res.redirect(`${frontend}/payment-cancelled?provider=webpay`);
+  } catch (error) {
+    console.error('[webpay/return] error:', error);
+    return res.status(500).json({ error: 'Webpay return handler failed' });
   }
 });
 

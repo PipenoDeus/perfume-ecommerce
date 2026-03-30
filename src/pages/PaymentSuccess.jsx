@@ -15,9 +15,11 @@ const PaymentSuccess = () => {
   useEffect(() => {
     let isMounted = true;
     const token = searchParams.get('token');
+    const tokenWs = searchParams.get('token_ws');
+    const provider = searchParams.get('provider');
 
     const capturePayment = async () => {
-      if (!token) {
+      if (!token && !tokenWs) {
         setStatus('error');
         setMessage(t('payment.missingToken'));
         return;
@@ -31,7 +33,9 @@ const PaymentSuccess = () => {
 
       try {
         setStatus('loading');
-        const response = await paymentService.capturePayPalOrder(token);
+        const response = tokenWs || provider === 'webpay'
+          ? await paymentService.commitWebpayTransaction(tokenWs)
+          : await paymentService.capturePayPalOrder(token);
         if (isMounted) {
           setStatus('success');
           setMessage(`${t('payment.success')} ${response.orderId}`);

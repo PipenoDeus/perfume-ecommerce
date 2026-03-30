@@ -93,6 +93,7 @@ export const translations = {
       ciudadPlaceholder: 'Ciudad',
       metodoPago: 'Método de Pago',
       metodoPaypal: 'PayPal',
+      metodoWebpay: 'Webpay Plus',
       metodoBanco: 'Transferencia Bancaria (Chile)',
       completarDatosEnvio: 'Completa los datos de envío.',
       iniciaSesionParaComprar: 'Inicia sesión para continuar con la compra.',
@@ -129,6 +130,11 @@ export const translations = {
       goProfile: 'Ver mis órdenes',
       goShop: 'Seguir comprando',
     },
+    whatsapp: {
+      cta: 'Escríbenos por WhatsApp',
+      ariaLabel: 'Abrir chat de WhatsApp',
+      mensajeInicial: 'Hola, quiero hacer una consulta sobre perfumes.',
+    },
     // Footer
     footer: {
       acercaDe: 'Acerca de PerfumeShop',
@@ -145,7 +151,8 @@ export const translations = {
       terminos: 'Términos y Condiciones',
       contactanos: 'Contáctanos',
       email: 'Email: info@perfumeshop.com',
-      telefono: 'Teléfono: +1 (555) 123-4567',
+      telefono: 'Teléfono: +56 9 7294 5310',
+      whatsapp: 'WhatsApp: +56 9 7294 5310',
       direccion: 'Dirección: 123 Avenida Lujo, Ciudad de la Moda, FM 12345',
       derechosReservados: 'Todos los derechos reservados',
     },
@@ -244,6 +251,7 @@ export const translations = {
       ciudadPlaceholder: 'City',
       metodoPago: 'Payment Method',
       metodoPaypal: 'PayPal',
+      metodoWebpay: 'Webpay Plus',
       metodoBanco: 'Bank Transfer (Chile)',
       completarDatosEnvio: 'Complete the shipping details.',
       iniciaSesionParaComprar: 'Login to continue checkout.',
@@ -280,6 +288,11 @@ export const translations = {
       goProfile: 'View my orders',
       goShop: 'Continue shopping',
     },
+    whatsapp: {
+      cta: 'Chat with us on WhatsApp',
+      ariaLabel: 'Open WhatsApp chat',
+      mensajeInicial: 'Hi, I want to ask about perfumes.',
+    },
     // Footer
     footer: {
       acercaDe: 'About PerfumeShop',
@@ -296,7 +309,8 @@ export const translations = {
       terminos: 'Terms & Conditions',
       contactanos: 'Contact Us',
       email: 'Email: info@perfumeshop.com',
-      telefono: 'Phone: +1 (555) 123-4567',
+      telefono: 'Phone: +56 9 7294 5310',
+      whatsapp: 'WhatsApp: +56 9 7294 5310',
       direccion: 'Address: 123 Luxury Lane, Fashion City, FC 12345',
       derechosReservados: 'All rights reserved.',
     },

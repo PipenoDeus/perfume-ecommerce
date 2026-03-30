@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 import { getCSRFToken } from './csrfService';
 
-const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000/api';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
 
 // Get JWT token from Supabase session
 const getAuthToken = async () => {
@@ -17,7 +17,7 @@ export const orderService = {
 
     const csrfToken = await getCSRFToken();
 
-    const response = await fetch(`${API_URL}/orders`, {
+    const response = await fetch(`${API_BASE_URL}/api/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -40,7 +40,7 @@ export const orderService = {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
-    const response = await fetch(`${API_URL}/orders`, {
+    const response = await fetch(`${API_BASE_URL}/api/orders`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -59,7 +59,7 @@ export const orderService = {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
-    const response = await fetch(`${API_URL}/orders/${orderId}`, {
+    const response = await fetch(`${API_BASE_URL}/api/orders/${orderId}`, {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -81,7 +81,7 @@ export const paymentService = {
     if (!token) throw new Error('Not authenticated');
 
     const csrfToken = await getCSRFToken();
-    const endpoint = `${API_URL}/payments/create-session`;
+    const endpoint = `${API_BASE_URL}/api/payments/create-session`;
 
     if (import.meta.env.DEV) {
       console.log('[payments] create-session ->', endpoint);
@@ -115,7 +115,7 @@ export const paymentService = {
 
     const csrfToken = await getCSRFToken();
 
-    const response = await fetch(`${API_URL}/payments/capture`, {
+    const response = await fetch(`${API_BASE_URL}/api/payments/capture`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -140,7 +140,7 @@ export const paymentService = {
 
     const csrfToken = await getCSRFToken();
 
-    const response = await fetch(`${API_URL}/payments/confirm-bank`, {
+    const response = await fetch(`${API_BASE_URL}/api/payments/confirm-bank`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -153,6 +153,57 @@ export const paymentService = {
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || 'Failed to confirm bank payment');
+    }
+
+    return response.json();
+  },
+
+  // Create Webpay transaction
+  async createWebpayTransaction(orderId) {
+    const csrfToken = await getCSRFToken();
+    const { data: { session } } = await supabase.auth.getSession();
+
+    const headers = {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    };
+    if (csrfToken) headers['x-csrf-token'] = csrfToken;
+    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+
+    const response = await fetch(`${API_BASE_URL}/api/payments/webpay/create`, {
+      method: 'POST',
+      credentials: 'include',
+      headers,
+      body: JSON.stringify({ orderId }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(data?.error || data?.message || `Error ${response.status}`);
+    }
+    return data;
+  },
+
+  // Commit Webpay transaction
+  async commitWebpayTransaction(token_ws) {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const csrfToken = await getCSRFToken();
+
+    const response = await fetch(`${API_BASE_URL}/api/payments/webpay/commit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'X-CSRF-Token': csrfToken
+      },
+      body: JSON.stringify({ token: token_ws })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to commit Webpay transaction');
     }
 
     return response.json();

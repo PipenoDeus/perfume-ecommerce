@@ -41,7 +41,28 @@ const Profile = () => {
 
   const formatDate = (value) => {
     if (!value) return '';
-    return new Date(value).toLocaleDateString();
+    return new Date(value).toLocaleDateString('es-CL');
+  };
+
+  const formatCLP = (value) => {
+    const amount = Number(value || 0);
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      currencyDisplay: 'code',
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
+
+  const formatStatus = (status) => {
+    const map = {
+      pending: 'Pendiente',
+      paid: 'Pagado',
+      failed: 'Fallido',
+      cancelled: 'Cancelado',
+      processing: 'Procesando',
+    };
+    return map[status] || status;
   };
 
   return (
@@ -80,12 +101,18 @@ const Profile = () => {
                 <div key={order.id} className="order-item">
                   <div className="order-header">
                     <div>
-                      <h3>{t('profile.orden')} #{order.id}</h3>
+                      <h3>{t('profile.orden')} #{order.id.slice(0, 8).toUpperCase()}</h3>
                       <p>{t('profile.fecha')}: {formatDate(order.created_at)}</p>
                     </div>
                     <div className="order-meta">
-                      <span>{t('profile.estado')}: {order.status}</span>
-                      <span>{t('profile.total')}: ${Number(order.total || 0).toFixed(2)}</span>
+                      <span>
+                        {t('profile.estado')}:{' '}
+                        <strong>{formatStatus(order.status)}</strong>
+                      </span>
+                      <span>
+                        {t('profile.total')}:{' '}
+                        <strong>{formatCLP(order.total)}</strong>
+                      </span>
                     </div>
                   </div>
                   <div className="order-items">
@@ -95,7 +122,7 @@ const Profile = () => {
                         <li key={`${order.id}-${index}`}>
                           <span>{item.name}</span>
                           <span>{t('profile.cantidad')}: {item.quantity}</span>
-                          <span>{t('profile.precio')}: ${item.price}</span>
+                          <span>{t('profile.precio')}: {formatCLP(item.price)}</span>
                         </li>
                       ))}
                     </ul>

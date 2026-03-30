@@ -53,6 +53,15 @@
   padding-left: 0.5rem;
 }
 
+.footer-whatsapp-link {
+  color: #61f0a6;
+  font-weight: 600;
+}
+
+.footer-whatsapp-link:hover {
+  color: #8af5bf;
+}
+
 .footer-bottom {
   background: rgba(0, 0, 0, 0.3);
   padding: 2rem;

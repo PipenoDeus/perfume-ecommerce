@@ -56,9 +56,8 @@ app.use(cors({
 app.use(generalLimiter);
 
 // Middleware
-app.use(express.json({
-  limit: '10kb' // Prevent large payload attacks
-}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // CSRF Token generation
 app.use(generateCSRFToken);

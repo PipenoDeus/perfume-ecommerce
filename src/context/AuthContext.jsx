@@ -19,7 +19,10 @@ export const AuthProvider = ({ children }) => {
         .single();
 
       const timeoutPromise = new Promise((resolve) =>
-        setTimeout(() => resolve({ data: null, error: { code: 'TIMEOUT', message: 'Role fetch timeout' } }), 3000)
+        setTimeout(
+          () => resolve({ data: null, error: { code: 'TIMEOUT', message: 'Role fetch timeout' } }),
+          8000
+        )
       );
 
       const { data, error } = await Promise.race([roleQuery, timeoutPromise]);

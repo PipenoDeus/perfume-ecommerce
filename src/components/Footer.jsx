@@ -6,6 +6,9 @@ import './Footer.css';
 const Footer = () => {
   const { t } = useContext(LanguageContext);
   const currentYear = new Date().getFullYear();
+  const whatsappNumber = '56972945310';
+  const whatsappMessage = encodeURIComponent(t('whatsapp.mensajeInicial'));
+  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
 
   return (
     <footer className="footer">
@@ -39,6 +42,11 @@ const Footer = () => {
           <h3>{t('footer.contactanos')}</h3>
           <p>{t('footer.email')}</p>
           <p>{t('footer.telefono')}</p>
+          <p>
+            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="footer-whatsapp-link">
+              {t('footer.whatsapp')}
+            </a>
+          </p>
           <p>{t('footer.direccion')}</p>
         </div>
       </div>

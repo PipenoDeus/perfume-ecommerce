@@ -5,6 +5,7 @@ import { CartContext } from './context/CartContext';
 import { initializeCSRF } from './services/csrfService';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import WhatsAppContact from './components/WhatsAppContact';
 import ProtectedAdminRoute from './components/ProtectedAdminRoute';
 import ProtectedDuenoRoute from './components/ProtectedDuenoRoute';
 import ProtectedUserRoute from './components/ProtectedUserRoute';
@@ -16,6 +17,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Profile from './pages/Profile';
 import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentCancelled from './pages/PaymentCancelled';
 import AdminPanel from './pages/AdminPanel';
 import AdminsPanel from './pages/AdminsPanel';
 import './App.css';
@@ -41,6 +43,7 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/payment-success" element={<PaymentSuccess />} />
+          <Route path="/payment-cancelled" element={<PaymentCancelled />} />
           <Route
             path="/profile"
             element={
@@ -67,6 +70,7 @@ function AppContent() {
           />
         </Routes>
       </main>
+      <WhatsAppContact />
       <Footer />
     </>
   );
