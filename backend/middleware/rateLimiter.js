@@ -1,5 +1,7 @@
 import rateLimit from 'express-rate-limit';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 /**
  * General rate limiter: 100 requests per 15 minutes per IP
  */
@@ -29,16 +31,19 @@ export const authLimiter = rateLimit({
 });
 
 /**
- * Payment rate limiter: 10 requests per hour per IP
+ * Payment rate limiter: strict in production, relaxed in development/testing
  */
 export const paymentLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10,
-  message: 'Too many payment requests, please try again later',
+  windowMs: isProduction ? 60 * 60 * 1000 : 15 * 60 * 1000,
+  max: isProduction ? 10 : 100,
+  message: {
+    error: isProduction
+      ? 'Too many payment requests, please try again later'
+      : 'Too many payment test requests, please wait a moment and try again'
+  },
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    // Use user ID if authenticated, fall back to IP
     return req.user?.id || req.ip;
   }
 });

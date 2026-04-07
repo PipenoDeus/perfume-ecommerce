@@ -191,25 +191,97 @@
   font-size: 0.9rem;
 }
 
-.form-group input {
+.form-group input:not([type='radio']):not([type='checkbox']),
+.form-group select {
   padding: 0.7rem 0.8rem;
   border-radius: 4px;
   border: 1px solid var(--border-color);
   font-size: 0.95rem;
+  font-family: inherit;
+  color: var(--text-dark);
+  background: white;
+  width: 100%;
+  cursor: pointer;
+}
+
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary-gold);
+  box-shadow: 0 0 0 3px rgba(201, 169, 97, 0.1);
 }
 
 .payment-options {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.7rem;
 }
 
 .payment-option {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.7rem;
   color: var(--text-dark);
   font-size: 0.95rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.75rem 0.85rem;
+  background: #fcfcfb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.payment-option:hover {
+  border-color: var(--primary-gold);
+  background: #f9f4e8;
+}
+
+.payment-option:has(input[type='radio']:checked) {
+  border-color: var(--primary-gold);
+  box-shadow: 0 0 0 2px rgba(201, 169, 97, 0.16);
+  background: #f7efde;
+}
+
+.payment-option input[type='radio'] {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #5f5f5f;
+  border-radius: 50%;
+  background: #fff;
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.payment-option input[type='radio']::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: scale(0);
+  transition: transform 0.15s ease-in-out;
+  background: var(--primary-gold);
+}
+
+.payment-option input[type='radio']:checked {
+  border-color: var(--primary-gold);
+}
+
+.payment-option input[type='radio']:checked::before {
+  transform: scale(1);
+}
+
+.payment-option input[type='radio']:focus-visible {
+  outline: 2px solid rgba(201, 169, 97, 0.35);
+  outline-offset: 2px;
+}
+
+.payment-option-text {
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .checkout-message {

@@ -4,9 +4,10 @@ import dotenv from 'dotenv';
 import helmet from 'helmet';
 import { createClient } from '@supabase/supabase-js';
 import { generateCSRFToken, validateCSRFToken } from './middleware/csrf.js';
-import { generalLimiter, paymentLimiter, orderLimiter } from './middleware/rateLimiter.js';
+import { generalLimiter, orderLimiter } from './middleware/rateLimiter.js';
 import ordersRouter from './routes/orders.js';
 import paymentsRouter from './routes/payments.js';
+import regionsRouter from './routes/regions.js';
 
 dotenv.config();
 
@@ -84,7 +85,8 @@ app.get('/api/csrf-token', (req, res) => {
 
 // Routes with rate limiting
 app.use('/api/orders', orderLimiter, ordersRouter);
-app.use('/api/payments', paymentLimiter, paymentsRouter);
+app.use('/api/payments', paymentsRouter);
+app.use('/api/regions', regionsRouter);
 
 // Health check
 app.get('/health', (req, res) => {

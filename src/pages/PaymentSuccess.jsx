@@ -1,47 +1,84 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
+import { CartContext } from '../context/CartContext';
 import { LanguageContext } from '../context/LanguageContext';
 import { paymentService } from '../services/paymentService';
 import './PaymentSuccess.css';
 
 const PaymentSuccess = () => {
-  const { user } = useContext(AuthContext);
+  const { clearCart } = useContext(CartContext);
   const { t } = useContext(LanguageContext);
   const [searchParams] = useSearchParams();
-  const [status, setStatus] = useState('loading');
-  const [message, setMessage] = useState('');
+  const token = searchParams.get('token');
+  const tokenWs = searchParams.get('token_ws');
+  const provider = searchParams.get('provider');
+  const orderId = searchParams.get('orderId');
+  const paymentStatus = searchParams.get('status');
+  const isWebpay = provider === 'webpay' || Boolean(tokenWs);
+
+  const initialStatus = paymentStatus === 'paid'
+    ? 'success'
+    : (!token && !tokenWs ? 'error' : 'loading');
+
+  const initialMessage = paymentStatus === 'paid'
+    ? t('payment.successGeneric')
+    : (!token && !tokenWs ? t('payment.missingToken') : t('payment.confirming'));
+
+  const [status, setStatus] = useState(initialStatus);
+  const [message, setMessage] = useState(initialMessage);
+  const requestPromiseRef = useRef(null);
+  const finalizedRef = useRef(initialStatus === 'success' || initialStatus === 'error');
 
   useEffect(() => {
-    let isMounted = true;
-    const token = searchParams.get('token');
-    const tokenWs = searchParams.get('token_ws');
-    const provider = searchParams.get('provider');
+    let cancelled = false;
 
     const capturePayment = async () => {
+      if (finalizedRef.current) {
+        return;
+      }
+
+      if (paymentStatus === 'paid') {
+        finalizedRef.current = true;
+        clearCart();
+        setStatus('success');
+        setMessage(t('payment.successGeneric'));
+        return;
+      }
+
       if (!token && !tokenWs) {
+        finalizedRef.current = true;
         setStatus('error');
         setMessage(t('payment.missingToken'));
         return;
       }
 
-      if (!user) {
-        setStatus('error');
-        setMessage(t('payment.loginRequired'));
-        return;
-      }
-
       try {
         setStatus('loading');
-        const response = tokenWs || provider === 'webpay'
-          ? await paymentService.commitWebpayTransaction(tokenWs)
-          : await paymentService.capturePayPalOrder(token);
-        if (isMounted) {
+        setMessage(t('payment.confirming'));
+
+        if (!requestPromiseRef.current) {
+          requestPromiseRef.current = isWebpay
+            ? paymentService.commitWebpayTransaction(tokenWs)
+            : paymentService.capturePayPalOrder(token, orderId);
+        }
+
+        const response = await requestPromiseRef.current;
+        const normalizedStatus = String(response?.status || '').toLowerCase();
+        const paymentSucceeded = response && (!response?.status || normalizedStatus === 'paid' || normalizedStatus === 'success');
+
+        if (!paymentSucceeded) {
+          throw new Error(t('payment.error'));
+        }
+
+        if (!cancelled) {
+          finalizedRef.current = true;
+          clearCart();
           setStatus('success');
-          setMessage(`${t('payment.success')} ${response.orderId}`);
+          setMessage(t('payment.successGeneric'));
         }
       } catch (error) {
-        if (isMounted) {
+        if (!cancelled) {
+          finalizedRef.current = true;
           setStatus('error');
           setMessage(error.message || t('payment.error'));
         }
@@ -51,14 +88,14 @@ const PaymentSuccess = () => {
     capturePayment();
 
     return () => {
-      isMounted = false;
+      cancelled = true;
     };
-  }, [searchParams, t, user]);
+  }, [clearCart, isWebpay, orderId, paymentStatus, t, token, tokenWs]);
 
   return (
     <div className="payment-success-page">
       <div className={`payment-card ${status}`}>
-        <h1>{t('payment.title')}</h1>
+        <h1>{isWebpay ? t('payment.webpayTitle') : t('payment.title')}</h1>
         <p>{message}</p>
         <div className="payment-actions">
           <Link to="/profile">{t('payment.goProfile')}</Link>

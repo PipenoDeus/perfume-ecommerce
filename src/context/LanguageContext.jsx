@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { translations } from '../translations';
 
 export const LanguageContext = createContext();
@@ -13,10 +13,10 @@ export const LanguageProvider = ({ children }) => {
     localStorage.setItem('language', language);
   }, [language]);
 
-  const t = (key) => {
+  const t = useCallback((key) => {
     const keys = key.split('.');
     let value = translations[language];
-    
+
     for (const k of keys) {
       if (value && typeof value === 'object') {
         value = value[k];
@@ -24,20 +24,20 @@ export const LanguageProvider = ({ children }) => {
         return key; // Return the key if translation not found
       }
     }
-    
+
     return value || key;
-  };
+  }, [language]);
 
-  const toggleLanguage = () => {
+  const toggleLanguage = useCallback(() => {
     setLanguage((prev) => (prev === 'es' ? 'en' : 'es'));
-  };
+  }, []);
 
-  const value = {
+  const value = useMemo(() => ({
     language,
     setLanguage,
     toggleLanguage,
     t,
-  };
+  }), [language, toggleLanguage, t]);
 
   return (
     <LanguageContext.Provider value={value}>

@@ -2,7 +2,14 @@ import express from 'express';
 import axios from 'axios';
 import transbank from 'transbank-sdk';
 import { authenticateUser } from '../middleware/auth.js';
-import { getOrder, updateOrderStatus } from '../services/orderService.js';
+import { paymentLimiter } from '../middleware/rateLimiter.js';
+import {
+  getOrder,
+  updateOrderStatus,
+  saveWebpaySession,
+  getOrderByWebpayToken,
+  saveWebpayResult
+} from '../services/orderService.js';
 import {
   verifyPayPalSignature,
   validatePaymentAmount,
@@ -87,12 +94,13 @@ const createPayPalOrder = async (order) => {
           value: Number(order.total || 0).toFixed(2)
         },
         custom_id: order.id,
+        invoice_id: order.id,
         description: `Order ${order.id}`
       }
     ],
     application_context: {
-      return_url: `${baseUrl}/payment-success`,
-      cancel_url: `${baseUrl}/cart`
+      return_url: `${baseUrl}/payment-success?provider=paypal&orderId=${encodeURIComponent(order.id)}`,
+      cancel_url: `${baseUrl}/cart?provider=paypal&status=cancelled&orderId=${encodeURIComponent(order.id)}`
     }
   };
 
@@ -128,7 +136,7 @@ const isUuid = (value) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ''));
 
 // Create payment session
-router.post('/create-session', authenticateUser, async (req, res) => {
+router.post('/create-session', authenticateUser, paymentLimiter, async (req, res) => {
   try {
     const { orderId, paymentMethod } = req.body;
 
@@ -230,7 +238,7 @@ router.post('/create-session', authenticateUser, async (req, res) => {
 });
 
 // Webpay Plus create transaction
-router.post('/webpay/create', authenticateUser, async (req, res) => {
+router.post('/webpay/create', authenticateUser, paymentLimiter, async (req, res) => {
   try {
     const { orderId } = req.body;
 
@@ -256,6 +264,12 @@ router.post('/webpay/create', authenticateUser, async (req, res) => {
     const returnUrl = `${backendBaseUrl}/api/payments/webpay/return`;
     const tx = await webpayTx.create(buyOrder, sessionId, amount, returnUrl);
 
+    await saveWebpaySession(orderId, {
+      buyOrder,
+      sessionId,
+      token: tx.token,
+    });
+
     return res.json({
       url: tx.url,
       token: tx.token,
@@ -271,10 +285,21 @@ router.post('/webpay/create', authenticateUser, async (req, res) => {
 });
 
 // Webpay Plus commit transaction
-router.post('/webpay/commit', authenticateUser, async (req, res) => {
+router.post('/webpay/commit', authenticateUser, paymentLimiter, async (req, res) => {
   try {
     const token = req.body?.token_ws || req.body?.token;
     if (!token) return res.status(400).json({ error: 'token requerido' });
+
+    const existingOrder = await getOrderByWebpayToken(token);
+    if (existingOrder?.status === 'paid') {
+      return res.json({
+        ok: true,
+        status: 'paid',
+        orderId: existingOrder.id,
+        transactionId: existingOrder.webpay_authorization_code || token,
+        result: existingOrder.webpay_response || null,
+      });
+    }
 
     const result = await webpayTx.commit(token);
     const orderId = result?.session_id; // UUID real
@@ -295,6 +320,7 @@ router.post('/webpay/commit', authenticateUser, async (req, res) => {
       token;
 
     await updateOrderStatus(orderId, isAuthorized ? 'paid' : 'failed', transactionId);
+    await saveWebpayResult(orderId, token, result);
 
     return res.json({
       ok: true,
@@ -311,35 +337,34 @@ router.post('/webpay/commit', authenticateUser, async (req, res) => {
   }
 });
 
-// Endpoint puente: Webpay responde por POST, SPA no puede leer body directamente
-router.post('/webpay/return', async (req, res) => {
-  const { token_ws, TBK_TOKEN, TBK_ORDEN_COMPRA, TBK_ID_SESION } = req.body || {};
-
-  const frontend = (process.env.FRONTEND_URL || 'http://localhost:5173').split(',')[0];
-
-  if (token_ws) {
-    return res.redirect(`${frontend}/payment-success?provider=webpay&token_ws=${encodeURIComponent(token_ws)}`);
-  }
-
-  return res.redirect(
-    `${frontend}/payment-success?provider=webpay&TBK_TOKEN=${encodeURIComponent(TBK_TOKEN || '')}&TBK_ORDEN_COMPRA=${encodeURIComponent(TBK_ORDEN_COMPRA || '')}&TBK_ID_SESION=${encodeURIComponent(TBK_ID_SESION || '')}`
-  );
-});
-
 // Webpay return handler (éxito o cancelación)
 router.all('/webpay/return', async (req, res) => {
   try {
     const tokenWs = req.body?.token_ws || req.query?.token_ws;
-
     const tbkToken = req.body?.TBK_TOKEN || req.query?.TBK_TOKEN;
     const tbkOrder = req.body?.TBK_ORDEN_COMPRA || req.query?.TBK_ORDEN_COMPRA;
     const tbkSession = req.body?.TBK_ID_SESION || req.query?.TBK_ID_SESION;
-
     const frontend = getFrontendBaseUrl();
 
     if (tokenWs) {
+      const result = await webpayTx.commit(tokenWs);
+      const orderId = result?.session_id;
+      const isAuthorized = result?.status === 'AUTHORIZED' && result?.response_code === 0;
+      const transactionId = result?.authorization_code || result?.buy_order || tokenWs;
+
+      if (orderId && isUuid(orderId)) {
+        await updateOrderStatus(orderId, isAuthorized ? 'paid' : 'failed', transactionId);
+        await saveWebpayResult(orderId, tokenWs, result);
+      }
+
+      if (isAuthorized) {
+        return res.redirect(
+          `${frontend}/payment-success?provider=webpay&status=paid&orderId=${encodeURIComponent(orderId || '')}`
+        );
+      }
+
       return res.redirect(
-        `${frontend}/payment-success?provider=webpay&token_ws=${encodeURIComponent(tokenWs)}`
+        `${frontend}/payment-cancelled?provider=webpay&status=failed&orderId=${encodeURIComponent(orderId || '')}`
       );
     }
 
@@ -352,7 +377,8 @@ router.all('/webpay/return', async (req, res) => {
     return res.redirect(`${frontend}/payment-cancelled?provider=webpay`);
   } catch (error) {
     console.error('[webpay/return] error:', error);
-    return res.status(500).json({ error: 'Webpay return handler failed' });
+    const frontend = getFrontendBaseUrl();
+    return res.redirect(`${frontend}/payment-cancelled?provider=webpay&status=error`);
   }
 });
 
@@ -459,9 +485,9 @@ router.post('/paypal-webhook', async (req, res) => {
 });
 
 // PayPal capture after return_url
-router.post('/capture', authenticateUser, async (req, res) => {
+router.post('/capture', authenticateUser, paymentLimiter, async (req, res) => {
   try {
-    const { paypalOrderId } = req.body;
+    const { paypalOrderId, orderId: providedOrderId } = req.body;
 
     if (!paypalOrderId) {
       return res.status(400).json({ error: 'Missing paypalOrderId' });
@@ -474,7 +500,11 @@ router.post('/capture', authenticateUser, async (req, res) => {
       return res.status(400).json({ error: 'Invalid PayPal status' });
     }
 
-    const internalOrderId = captureData?.purchase_units?.[0]?.custom_id;
+    const internalOrderId =
+      captureData?.purchase_units?.[0]?.custom_id ||
+      captureData?.purchase_units?.[0]?.invoice_id ||
+      providedOrderId;
+
     if (!internalOrderId) {
       return res.status(400).json({ error: 'Missing internal order id' });
     }
@@ -527,7 +557,7 @@ router.post('/capture', authenticateUser, async (req, res) => {
 });
 
 // Bank payment confirmation (admin only) - with validation and audit
-router.post('/confirm-bank', authenticateUser, async (req, res) => {
+router.post('/confirm-bank', authenticateUser, paymentLimiter, async (req, res) => {
   try {
     // Only allow admin/dueño to confirm
     if (req.user.role !== 'dueño' && req.user.role !== 'admin') {

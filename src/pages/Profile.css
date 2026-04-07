@@ -108,6 +108,40 @@
   color: var(--text-dark);
 }
 
+.order-tracking {
+  background: #f0f7ff;
+  border-left: 4px solid var(--primary-gold);
+  padding: 1rem;
+  margin: 0.75rem 0;
+  border-radius: 4px;
+}
+
+.order-tracking h4 {
+  margin: 0 0 0.5rem;
+  color: var(--text-dark);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tracking-number {
+  font-family: 'Courier New', monospace;
+  font-size: 1.1rem;
+  background: white;
+  padding: 0.75rem;
+  border-radius: 4px;
+  margin: 0.5rem 0;
+  border: 1px solid var(--primary-gold);
+  color: var(--dark-gold);
+}
+
+.tracking-hint {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  margin: 0.5rem 0 0;
+  font-style: italic;
+}
+
 @media (max-width: 900px) {
   .profile-grid {
     grid-template-columns: 1fr;

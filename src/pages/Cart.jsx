@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { CartContext } from '../context/CartContext';
 import { AuthContext } from '../context/AuthContext';
@@ -6,12 +6,22 @@ import { LanguageContext } from '../context/LanguageContext';
 import { orderService, paymentService } from '../services/paymentService';
 import './Cart.css';
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
+
 const Cart = () => {
   const { t } = useContext(LanguageContext);
   const { user } = useContext(AuthContext);
   const { cart, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useContext(CartContext);
   const [shippingAddress, setShippingAddress] = useState({ address: '', city: '' });
   const [paymentMethod, setPaymentMethod] = useState('paypal');
+  const [regions, setRegions] = useState([]);
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/api/regions`)
+      .then((res) => res.json())
+      .then((data) => setRegions(Array.isArray(data) ? data : []))
+      .catch(() => setRegions([]));
+  }, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
   const [checkoutSuccess, setCheckoutSuccess] = useState('');
@@ -33,7 +43,9 @@ const Cart = () => {
 
   const handleCheckout = async () => {
     if (!user) {
-      setCheckoutError(t('cart.iniciaSesionParaComprar'));
+      const loginMessage = t('cart.iniciaSesionParaComprar');
+      setCheckoutError(loginMessage);
+      window.alert(loginMessage);
       return;
     }
 
@@ -81,6 +93,8 @@ const Cart = () => {
 
         form.appendChild(input);
         document.body.appendChild(form);
+        clearCart();
+        setShippingAddress({ address: '', city: '' });
         form.submit();
         return;
       }
@@ -193,14 +207,19 @@ const Cart = () => {
               />
             </div>
             <div className="form-group">
-              <label htmlFor="city">{t('cart.ciudad')}</label>
-              <input
+              <label htmlFor="city">{t('cart.region')}</label>
+              <select
                 id="city"
-                type="text"
                 value={shippingAddress.city}
                 onChange={(e) => setShippingAddress({ ...shippingAddress, city: e.target.value })}
-                placeholder={t('cart.ciudadPlaceholder')}
-              />
+              >
+                <option value="">{t('cart.seleccionarRegion')}</option>
+                {regions.map((region) => (
+                  <option key={region.id} value={region.name}>
+                    {region.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="form-group">
               <label>{t('cart.metodoPago')}</label>
@@ -213,7 +232,7 @@ const Cart = () => {
                     checked={paymentMethod === 'paypal'}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                   />
-                  {t('cart.metodoPaypal')}
+                  <span className="payment-option-text">{t('cart.metodoPaypal')}</span>
                 </label>
                 <label className="payment-option">
                   <input
@@ -223,18 +242,9 @@ const Cart = () => {
                     checked={paymentMethod === 'webpay'}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                   />
-                  {t('cart.metodoWebpay')}
+                  <span className="payment-option-text">{t('cart.metodoWebpay')}</span>
                 </label>
-                <label className="payment-option">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="bank"
-                    checked={paymentMethod === 'bank'}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                  />
-                  {t('cart.metodoBanco')}
-                </label>
+
               </div>
             </div>
             {checkoutError && <p className="checkout-message error">{checkoutError}</p>}

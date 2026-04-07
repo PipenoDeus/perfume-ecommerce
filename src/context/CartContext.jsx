@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 
 export const CartContext = createContext();
 
@@ -12,7 +12,7 @@ export const CartProvider = ({ children }) => {
     }
   });
 
-  const addToCart = (perfume, quantity = 1) => {
+  const addToCart = useCallback((perfume, quantity = 1) => {
     setCart((prevCart) => {
       const existingItem = prevCart.find((item) => item.id === perfume.id);
       if (existingItem) {
@@ -24,13 +24,13 @@ export const CartProvider = ({ children }) => {
       }
       return [...prevCart, { ...perfume, quantity }];
     });
-  };
+  }, []);
 
-  const removeFromCart = (perfumeId) => {
+  const removeFromCart = useCallback((perfumeId) => {
     setCart((prevCart) => prevCart.filter((item) => item.id !== perfumeId));
-  };
+  }, []);
 
-  const updateQuantity = (perfumeId, quantity) => {
+  const updateQuantity = useCallback((perfumeId, quantity) => {
     const safeQuantity = Math.max(1, Number(quantity) || 1);
     setCart((prevCart) =>
       prevCart.map((item) =>
@@ -44,15 +44,15 @@ export const CartProvider = ({ children }) => {
           : item
       )
     );
-  };
+  }, []);
 
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     setCart([]);
-  };
+  }, []);
 
-  const getTotalPrice = () => {
+  const getTotalPrice = useCallback(() => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
-  };
+  }, [cart]);
 
   useEffect(() => {
     try {
@@ -62,14 +62,14 @@ export const CartProvider = ({ children }) => {
     }
   }, [cart]);
 
-  const value = {
+  const value = useMemo(() => ({
     cart,
     addToCart,
     removeFromCart,
     updateQuantity,
     clearCart,
     getTotalPrice,
-  };
+  }), [cart, addToCart, removeFromCart, updateQuantity, clearCart, getTotalPrice]);
 
   return (
     <CartContext.Provider value={value}>

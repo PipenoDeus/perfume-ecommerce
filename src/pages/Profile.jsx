@@ -115,6 +115,15 @@ const Profile = () => {
                       </span>
                     </div>
                   </div>
+                  {order.tracking_number && (
+                    <div className="order-tracking">
+                      <h4>{t('profile.tracking')}</h4>
+                      <p className="tracking-number"><strong>{order.tracking_number}</strong></p>
+                      <p className="tracking-hint">
+                        Usa este número en Correos Chile, Starken o tu servicio de envío
+                      </p>
+                    </div>
+                  )}
                   <div className="order-items">
                     <h4>{t('profile.items')}</h4>
                     <ul>

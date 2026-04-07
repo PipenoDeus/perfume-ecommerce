@@ -109,7 +109,7 @@ export const paymentService = {
   },
 
   // Capture PayPal payment after return_url
-  async capturePayPalOrder(paypalOrderId) {
+  async capturePayPalOrder(paypalOrderId, orderId = null) {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
@@ -122,7 +122,7 @@ export const paymentService = {
         'Authorization': `Bearer ${token}`,
         'X-CSRF-Token': csrfToken
       },
-      body: JSON.stringify({ paypalOrderId })
+      body: JSON.stringify({ paypalOrderId, orderId })
     });
 
     if (!response.ok) {
@@ -179,6 +179,9 @@ export const paymentService = {
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
+      if (response.status === 429) {
+        throw new Error(data?.error || 'Demasiados intentos de pago. Espera un momento y vuelve a intentarlo.');
+      }
       throw new Error(data?.error || data?.message || `Error ${response.status}`);
     }
     return data;
