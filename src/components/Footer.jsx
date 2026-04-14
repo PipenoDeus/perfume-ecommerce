@@ -6,9 +6,6 @@ import './Footer.css';
 const Footer = () => {
   const { t } = useContext(LanguageContext);
   const currentYear = new Date().getFullYear();
-  const whatsappNumber = '56972945310';
-  const whatsappMessage = encodeURIComponent(t('whatsapp.mensajeInicial'));
-  const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
 
   return (
     <footer className="footer">
@@ -22,37 +19,31 @@ const Footer = () => {
           <h3>{t('footer.enlaces')}</h3>
           <ul>
             <li><Link to="/products">{t('footer.tienda')}</Link></li>
-            <li><Link to="/">{t('footer.inicio')}</Link></li>
-            <li><a href="#contact">{t('footer.contacto')}</a></li>
-            <li><a href="#faq">{t('footer.preguntas')}</a></li>
+            <li><Link to="/about">{t('footer.sobreNosotros')}</Link></li>
+            <li><Link to="/faq">{t('footer.preguntas')}</Link></li>
           </ul>
         </div>
 
         <div className="footer-section">
           <h3>{t('footer.servicio')}</h3>
           <ul>
-            <li><a href="#shipping">{t('footer.infoEnvio')}</a></li>
-            <li><a href="#returns">{t('footer.devoluciones')}</a></li>
-            <li><a href="#privacy">{t('footer.privacidad')}</a></li>
-            <li><a href="#terms">{t('footer.terminos')}</a></li>
+            <li><Link to="/shipping-info">{t('footer.infoEnvio')}</Link></li>
+            <li><Link to="/returns">{t('footer.devoluciones')}</Link></li>
+            <li><Link to="/privacy-policy">{t('footer.privacidad')}</Link></li>
+            <li><Link to="/terms-and-conditions">{t('footer.terminos')}</Link></li>
           </ul>
         </div>
 
         <div className="footer-section">
           <h3>{t('footer.contactanos')}</h3>
           <p>{t('footer.email')}</p>
-          <p>{t('footer.telefono')}</p>
-          <p>
-            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="footer-whatsapp-link">
-              {t('footer.whatsapp')}
-            </a>
-          </p>
+          <p>{t('footer.whatsapp')}</p>
           <p>{t('footer.direccion')}</p>
         </div>
       </div>
 
       <div className="footer-bottom">
-        <p>&copy; {currentYear} PerfumeShop. {t('footer.derechosReservados')}</p>
+        <p>&copy; {currentYear} QamarPerfumes. {t('footer.derechosReservados')}</p>
         <div className="social-links">
           <a href="#facebook" className="social-icon">f</a>
           <a href="#instagram" className="social-icon">📷</a>

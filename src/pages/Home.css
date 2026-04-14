@@ -89,16 +89,6 @@
   box-shadow: 0 8px 20px rgba(201, 169, 97, 0.4);
 }
 
-.about {
-  max-width: 800px;
-  margin: 4rem auto;
-  padding: 3rem 2rem;
-  text-align: center;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-}
-
 .home-products {
   max-width: 1400px;
   margin: 4rem auto;
@@ -156,19 +146,6 @@
   background: white;
   border-radius: 8px;
   border: 1px solid var(--border-color);
-}
-
-.about h2 {
-  font-size: 2.2rem;
-  margin-bottom: 1.5rem;
-  color: var(--text-dark);
-  font-weight: 700;
-}
-
-.about p {
-  font-size: 1rem;
-  color: var(--text-light);
-  line-height: 1.8;
 }
 
 @media (max-width: 768px) {

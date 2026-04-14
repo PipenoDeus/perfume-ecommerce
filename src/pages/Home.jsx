@@ -25,7 +25,7 @@ const Home = () => {
           return dateB - dateA;
         });
         if (isMounted) {
-          setFeaturedPerfumes(sorted.slice(0, 6));
+          setFeaturedPerfumes(sorted.slice(0, 8));
         }
       } catch (error) {
         if (isMounted) {
@@ -81,12 +81,6 @@ const Home = () => {
         )}
       </section>
 
-      <section className="about">
-        <h2>{t('home.acercaDe')}</h2>
-        <p>
-          {t('home.acercaDeDesc')}
-        </p>
-      </section>
     </div>
   );
 };

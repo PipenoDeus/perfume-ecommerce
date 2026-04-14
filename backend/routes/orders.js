@@ -4,7 +4,8 @@ import {
   createOrder, 
   getOrder, 
   getUserOrders, 
-  updateOrderStatus 
+  updateOrderStatus,
+  updateOrderShippingAddress,
 } from '../services/orderService.js';
 
 const router = express.Router();
@@ -47,6 +48,43 @@ router.get('/', authenticateUser, async (req, res) => {
   try {
     const orders = await getUserOrders(req.user.id);
     res.json(orders);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put('/:orderId/shipping-address', authenticateUser, async (req, res) => {
+  try {
+    const { shippingAddress } = req.body;
+
+    if (!shippingAddress || !shippingAddress.address || !shippingAddress.city) {
+      return res.status(400).json({ error: 'Invalid shipping address' });
+    }
+
+    const order = await getOrder(req.params.orderId);
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if (order.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const editableStatuses = ['pending', 'paid', 'processing'];
+    if (!editableStatuses.includes(String(order.status || '').toLowerCase())) {
+      return res.status(400).json({
+        error: 'La dirección de envío solo se puede editar antes de que el pedido sea enviado.'
+      });
+    }
+
+    const updatedOrder = await updateOrderShippingAddress(
+      req.params.orderId,
+      req.user.id,
+      shippingAddress
+    );
+
+    res.json(updatedOrder);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

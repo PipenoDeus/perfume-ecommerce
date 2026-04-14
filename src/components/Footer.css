@@ -53,6 +53,17 @@
   padding-left: 0.5rem;
 }
 
+.footer-about-link {
+  display: inline-block;
+  margin-top: 0.3rem;
+  color: var(--primary-gold) !important;
+  font-weight: 600;
+}
+
+.footer-about-link:hover {
+  color: white !important;
+}
+
 .footer-whatsapp-link {
   color: #61f0a6;
   font-weight: 600;

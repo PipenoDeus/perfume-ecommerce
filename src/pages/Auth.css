@@ -9,11 +9,12 @@
 
 .auth-container {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 1fr);
   gap: 2rem;
-  max-width: 1000px;
+  max-width: 1100px;
   width: 100%;
   padding: 0 2rem;
+  align-items: stretch;
 }
 
 .auth-card {
@@ -23,6 +24,7 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
+  min-height: 720px;
 }
 
 .auth-title {
@@ -76,7 +78,8 @@
   font-size: 0.95rem;
 }
 
-.form-group input {
+.form-group input,
+.form-group select {
   width: 100%;
   padding: 0.9rem 1rem;
   border: 2px solid var(--border-color);
@@ -84,9 +87,11 @@
   font-family: inherit;
   font-size: 1rem;
   transition: all 0.3s ease;
+  background: white;
 }
 
-.form-group input:focus {
+.form-group input:focus,
+.form-group select:focus {
   outline: none;
   border-color: var(--primary-gold);
   box-shadow: 0 0 0 3px rgba(201, 169, 97, 0.1);
@@ -94,6 +99,41 @@
 
 .form-group input::placeholder {
   color: #aaa;
+}
+
+.phone-input-wrapper {
+  display: flex;
+  align-items: center;
+  border: 2px solid var(--border-color);
+  border-radius: 4px;
+  background: white;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.phone-input-wrapper:focus-within {
+  border-color: var(--primary-gold);
+  box-shadow: 0 0 0 3px rgba(201, 169, 97, 0.1);
+}
+
+.phone-prefix {
+  padding: 0.9rem 0.85rem;
+  background: #f8f6f1;
+  color: var(--text-dark);
+  font-weight: 600;
+  border-right: 1px solid var(--border-color);
+  white-space: nowrap;
+}
+
+.phone-input-wrapper input {
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  flex: 1;
+}
+
+.phone-input-wrapper input:focus {
+  box-shadow: none;
 }
 
 .btn-login {
@@ -148,7 +188,7 @@
 }
 
 .auth-banner {
-  background: linear-gradient(135deg, #1e5a96 0%, #2d7ab5 100%);
+  background: linear-gradient(135deg, #a67c1b 0%, #c9a961 45%, #e0c37a 100%);
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -156,6 +196,8 @@
   padding: 3rem 2rem;
   position: relative;
   overflow: hidden;
+  min-height: 720px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .auth-banner::before {
@@ -165,7 +207,7 @@
   right: -10%;
   width: 400px;
   height: 400px;
-  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
   border-radius: 50%;
 }
 
@@ -199,6 +241,7 @@
 
   .auth-card {
     padding: 2rem 1.5rem;
+    min-height: auto;
   }
 
   .auth-title {

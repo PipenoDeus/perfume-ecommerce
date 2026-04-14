@@ -20,6 +20,12 @@ import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancelled from './pages/PaymentCancelled';
 import AdminPanel from './pages/AdminPanel';
 import AdminsPanel from './pages/AdminsPanel';
+import About from './pages/About';
+import FAQ from './pages/FAQ';
+import ShippingInfo from './pages/ShippingInfo';
+import ReturnsPolicy from './pages/ReturnsPolicy';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsAndConditions from './pages/TermsAndConditions';
 import './App.css';
 
 function AppContent() {
@@ -42,6 +48,12 @@ function AppContent() {
           <Route path="/cart" element={<Cart />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/faq" element={<FAQ />} />
+          <Route path="/shipping-info" element={<ShippingInfo />} />
+          <Route path="/returns" element={<ReturnsPolicy />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
           <Route path="/payment-success" element={<PaymentSuccess />} />
           <Route path="/payment-cancelled" element={<PaymentCancelled />} />
           <Route

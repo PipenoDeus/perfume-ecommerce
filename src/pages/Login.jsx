@@ -54,7 +54,7 @@ const Login = () => {
       <div className="auth-container">
         <div className="auth-card">
           <h1 className="auth-title">Iniciar Sesión</h1>
-          <p className="auth-subtitle">Bienvenido a PerfumesDemo</p>
+          <p className="auth-subtitle">Bienvenido a QamarPerfumes</p>
 
           {error && <div className="alert alert-error">{error}</div>}
 
@@ -104,7 +104,7 @@ const Login = () => {
 
         <div className="auth-banner">
           <div className="banner-content">
-            <h2>PerfumesDemo</h2>
+            <h2>QamarPerfumes</h2>
             <p>Los mejores perfumes en un solo lugar</p>
           </div>
         </div>

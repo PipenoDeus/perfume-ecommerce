@@ -170,6 +170,28 @@ export const updateOrderTracking = async (orderId, trackingNumber, status = 'shi
   }
 };
 
+export const updateOrderShippingAddress = async (orderId, userId, shippingAddress) => {
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .update({
+        shipping_address: shippingAddress,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', orderId)
+      .eq('user_id', userId)
+      .select('id, user_id, status, shipping_address, updated_at')
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) throw new Error('Order not found or unauthorized');
+
+    return data;
+  } catch (err) {
+    throw new Error(`Error updating shipping address: ${err.message}`);
+  }
+};
+
 // Get all orders (for admin)
 export const getAllOrders = async () => {
   try {

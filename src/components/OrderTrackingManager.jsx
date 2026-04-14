@@ -3,6 +3,12 @@ import { LanguageContext } from '../context/LanguageContext';
 import { supabase } from '../services/supabase';
 import './OrderTrackingManager.css';
 
+const COURIER_OPTIONS = [
+  { value: 'starken', label: 'Starken' },
+  { value: 'chilexpress', label: 'Chilexpress' },
+  { value: 'correoschile', label: 'CorreosChile' },
+];
+
 const OrderTrackingManager = () => {
   const { t } = useContext(LanguageContext);
   const [orders, setOrders] = useState([]);
@@ -11,6 +17,7 @@ const OrderTrackingManager = () => {
   const [success, setSuccess] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [trackingInput, setTrackingInput] = useState('');
+  const [shippingCompanyInput, setShippingCompanyInput] = useState('');
   const [statusInput, setStatusInput] = useState('shipped');
 
   useEffect(() => {
@@ -20,13 +27,39 @@ const OrderTrackingManager = () => {
   const loadOrders = async () => {
     try {
       setLoading(true);
-      const { data, error: err } = await supabase
-        .from('orders')
-        .select('*')
-        .order('created_at', { ascending: false });
+      setError(null);
 
-      if (err) throw err;
-      setOrders(Array.isArray(data) ? data : []);
+      const [{ data: ordersData, error: ordersError }, { data: usersData, error: usersError }] = await Promise.all([
+        supabase
+          .from('orders')
+          .select('*')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('users')
+          .select('id, full_name, email, phone, address, city'),
+      ]);
+
+      if (ordersError) throw ordersError;
+      if (usersError) {
+        console.warn('[OrderTrackingManager] No se pudieron cargar los usuarios:', usersError);
+      }
+
+      const usersMap = new Map((usersData || []).map((user) => [user.id, user]));
+      const mergedOrders = (ordersData || []).map((order) => {
+        const customer = usersMap.get(order.user_id) || null;
+        const shippingAddress = order.shipping_address || {};
+
+        return {
+          ...order,
+          customer_name: customer?.full_name || shippingAddress?.name || 'N/A',
+          customer_email: customer?.email || 'N/A',
+          customer_phone: customer?.phone || 'N/A',
+          customer_address: shippingAddress?.address || customer?.address || 'N/A',
+          customer_region: shippingAddress?.city || customer?.city || '',
+        };
+      });
+
+      setOrders(mergedOrders);
     } catch (err) {
       setError('Error al cargar órdenes: ' + err.message);
     } finally {
@@ -52,31 +85,79 @@ const OrderTrackingManager = () => {
   const formatStatus = (status) => {
     const map = {
       pending: 'Pendiente',
-      paid: 'Pagado',
-      processing: 'Procesando',
+      paid: 'Pendiente de envio',
+      processing: 'Pendiente de envio',
       shipped: 'Enviado',
-      delivered: 'Entregado',
+      delivered: 'Recibido',
       cancelled: 'Cancelado',
       failed: 'Fallido',
     };
     return map[status] || status;
   };
 
+  const normalizeStatusForTrackingSelect = (status) => {
+    const normalized = String(status || '').toLowerCase();
+
+    if (normalized === 'processing') return 'paid';
+    if (['paid', 'shipped', 'delivered'].includes(normalized)) return normalized;
+
+    return 'shipped';
+  };
+
+  const formatShippingCompany = (company) => {
+    const map = {
+      starken: 'Starken',
+      chilexpress: 'Chilexpress',
+      correoschile: 'CorreosChile',
+    };
+
+    return map[String(company || '').toLowerCase()] || company || 'Sin asignar';
+  };
+
+  const normalizeShippingCompany = (company) => {
+    const normalized = String(company || '').trim().toLowerCase();
+
+    if (normalized.includes('starken')) return 'starken';
+    if (normalized.includes('chilexpress') || normalized.includes('chile express')) {
+      return 'chilexpress';
+    }
+    if (normalized.includes('correoschile') || normalized.includes('correos chile')) {
+      return 'correoschile';
+    }
+
+    return '';
+  };
+
   const handleEditTracking = (order) => {
+    if (order.status === 'failed' || order.status === 'cancelled') {
+      setError('No se puede asignar seguimiento a órdenes fallidas o canceladas');
+      return;
+    }
+
+    setError(null);
     setEditingId(order.id);
     setTrackingInput(order.tracking_number || '');
-    setStatusInput(order.status || 'shipped');
+    setShippingCompanyInput(normalizeShippingCompany(order.shipping_company));
+    setStatusInput(normalizeStatusForTrackingSelect(order.status));
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setTrackingInput('');
+    setShippingCompanyInput('');
     setStatusInput('shipped');
   };
 
   const handleSaveTracking = async (orderId) => {
-    if (!trackingInput.trim()) {
+    const cleanTracking = trackingInput.trim().toUpperCase();
+
+    if (!cleanTracking) {
       setError('El número de seguimiento no puede estar vacío');
+      return;
+    }
+
+    if (!shippingCompanyInput) {
+      setError('Selecciona la empresa de envío');
       return;
     }
 
@@ -85,9 +166,10 @@ const OrderTrackingManager = () => {
       const { error: err } = await supabase
         .from('orders')
         .update({
-          tracking_number: trackingInput.trim(),
+          tracking_number: cleanTracking,
+          shipping_company: shippingCompanyInput,
           status: statusInput,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
         .eq('id', orderId);
 
@@ -96,17 +178,31 @@ const OrderTrackingManager = () => {
       setSuccess('Seguimiento actualizado correctamente');
       setEditingId(null);
       setTrackingInput('');
+      setShippingCompanyInput('');
       setStatusInput('shipped');
       loadOrders();
 
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      setError('Error al actualizar: ' + err.message);
+      const message = err?.message?.includes('shipping_company')
+        ? 'Falta la columna shipping_company en la base de datos. Ejecuta el script setup-shipping-tracking.sql en Supabase.'
+        : `Error al actualizar: ${err.message}`;
+
+      setError(message);
     }
   };
 
-  const pendingOrders = orders.filter(o => !o.tracking_number);
-  const trackedOrders = orders.filter(o => o.tracking_number);
+  const formatCustomerAddress = (order) => {
+    const parts = [order.customer_address, order.customer_region].filter(
+      (part) => part && part !== 'N/A'
+    );
+    return parts.length ? parts.join(', ') : 'N/A';
+  };
+
+  const pendingOrders = orders.filter(
+    (order) => !order.tracking_number && ['paid', 'processing'].includes(order.status)
+  );
+  const trackedOrders = orders.filter((order) => order.tracking_number);
 
   return (
     <div className="tracking-manager">
@@ -135,11 +231,26 @@ const OrderTrackingManager = () => {
                     <div className="order-card-body">
                       <p><strong>Total:</strong> {formatCLP(order.total)}</p>
                       <p><strong>Fecha:</strong> {formatDate(order.created_at)}</p>
-                      <p><strong>Cliente:</strong> {order.shipping_address?.city || 'N/A'}</p>
+                      <p><strong>Cliente:</strong> {order.customer_name}</p>
+                      <p><strong>Correo:</strong> {order.customer_email}</p>
+                      <p><strong>Teléfono:</strong> {order.customer_phone}</p>
+                      <p><strong>Dirección:</strong> {formatCustomerAddress(order)}</p>
                     </div>
 
                     {editingId === order.id ? (
                       <div className="tracking-form">
+                        <select
+                          value={shippingCompanyInput}
+                          onChange={(e) => setShippingCompanyInput(e.target.value)}
+                          className="tracking-select"
+                        >
+                          <option value="">Selecciona empresa de envío</option>
+                          {COURIER_OPTIONS.map((company) => (
+                            <option key={company.value} value={company.value}>
+                              {company.label}
+                            </option>
+                          ))}
+                        </select>
                         <input
                           type="text"
                           value={trackingInput}
@@ -152,10 +263,9 @@ const OrderTrackingManager = () => {
                           onChange={(e) => setStatusInput(e.target.value)}
                           className="status-select"
                         >
-                          <option value="paid">Pagado</option>
-                          <option value="processing">Procesando</option>
+                          <option value="paid">Pendiente de envio</option>
                           <option value="shipped">Enviado</option>
-                          <option value="delivered">Entregado</option>
+                          <option value="delivered">Recibido</option>
                         </select>
                         <div className="form-actions">
                           <button
@@ -197,8 +307,11 @@ const OrderTrackingManager = () => {
                   <thead>
                     <tr>
                       <th>Orden</th>
+                      <th>Cliente</th>
+                      <th>Dirección</th>
                       <th>Total</th>
                       <th>Estado</th>
+                      <th>Empresa de envío</th>
                       <th>Número de Seguimiento</th>
                       <th>Fecha</th>
                       <th>Acciones</th>
@@ -208,8 +321,17 @@ const OrderTrackingManager = () => {
                     {trackedOrders.map(order => (
                       <tr key={order.id}>
                         <td>#{order.id.slice(0, 8).toUpperCase()}</td>
+                        <td className="customer-details-cell">
+                          <strong className="customer-name">{order.customer_name}</strong>
+                          <span className="customer-extra">{order.customer_email}</span>
+                          <span className="customer-extra">{order.customer_phone}</span>
+                        </td>
+                        <td className="address-cell">{formatCustomerAddress(order)}</td>
                         <td>{formatCLP(order.total)}</td>
                         <td><span className="status-badge">{formatStatus(order.status)}</span></td>
+                        <td>
+                          <span className="shipping-company">{formatShippingCompany(order.shipping_company)}</span>
+                        </td>
                         <td className="tracking-cell">
                           <code>{order.tracking_number}</code>
                         </td>
@@ -217,24 +339,47 @@ const OrderTrackingManager = () => {
                         <td>
                           {editingId === order.id ? (
                             <div className="inline-edit">
+                              <select
+                                value={shippingCompanyInput}
+                                onChange={(e) => setShippingCompanyInput(e.target.value)}
+                                className="tracking-select-sm"
+                              >
+                                <option value="">Empresa de envío</option>
+                                {COURIER_OPTIONS.map((company) => (
+                                  <option key={company.value} value={company.value}>
+                                    {company.label}
+                                  </option>
+                                ))}
+                              </select>
                               <input
                                 type="text"
                                 value={trackingInput}
                                 onChange={(e) => setTrackingInput(e.target.value)}
                                 className="tracking-input-sm"
                               />
-                              <button
-                                className="btn btn-sm btn-success"
-                                onClick={() => handleSaveTracking(order.id)}
+                              <select
+                                value={statusInput}
+                                onChange={(e) => setStatusInput(e.target.value)}
+                                className="status-select-sm"
                               >
-                                ✓
-                              </button>
-                              <button
-                                className="btn btn-sm btn-secondary"
-                                onClick={handleCancelEdit}
-                              >
-                                ✕
-                              </button>
+                                <option value="paid">Pendiente de envio</option>
+                                <option value="shipped">Enviado</option>
+                                <option value="delivered">Recibido</option>
+                              </select>
+                              <div className="inline-edit-actions">
+                                <button
+                                  className="btn btn-sm btn-success"
+                                  onClick={() => handleSaveTracking(order.id)}
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  className="btn btn-sm btn-secondary"
+                                  onClick={handleCancelEdit}
+                                >
+                                  ✕
+                                </button>
+                              </div>
                             </div>
                           ) : (
                             <button

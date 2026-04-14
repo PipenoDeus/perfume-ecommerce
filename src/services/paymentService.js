@@ -1,7 +1,34 @@
 import { supabase } from './supabase';
-import { getCSRFToken } from './csrfService';
+import { fetchCSRFToken, getCSRFToken } from './csrfService';
 
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
+
+const fetchWithCSRFRetry = async (url, options = {}) => {
+  const token = await getCSRFToken();
+
+  const doRequest = async (csrfToken) => fetch(url, {
+    credentials: 'include',
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+    },
+  });
+
+  let response = await doRequest(token);
+
+  if (response.status === 403) {
+    const errorPayload = await response.clone().json().catch(() => ({}));
+    const message = String(errorPayload?.error || '');
+
+    if (/csrf|expired/i.test(message)) {
+      const freshToken = await fetchCSRFToken();
+      response = await doRequest(freshToken);
+    }
+  }
+
+  return response;
+};
 
 // Get JWT token from Supabase session
 const getAuthToken = async () => {
@@ -15,14 +42,11 @@ export const orderService = {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
-    const csrfToken = await getCSRFToken();
-
-    const response = await fetch(`${API_BASE_URL}/api/orders`, {
+    const response = await fetchWithCSRFRetry(`${API_BASE_URL}/api/orders`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
-        'X-CSRF-Token': csrfToken
       },
       body: JSON.stringify({ items, shippingAddress })
     });
@@ -71,6 +95,27 @@ export const orderService = {
     }
 
     return response.json();
+  },
+
+  async updateOrderShippingAddress(orderId, shippingAddress) {
+    const token = await getAuthToken();
+    if (!token) throw new Error('Not authenticated');
+
+    const response = await fetchWithCSRFRetry(`${API_BASE_URL}/api/orders/${orderId}/shipping-address`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ shippingAddress }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to update shipping address');
+    }
+
+    return response.json();
   }
 };
 
@@ -80,19 +125,17 @@ export const paymentService = {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
-    const csrfToken = await getCSRFToken();
     const endpoint = `${API_BASE_URL}/api/payments/create-session`;
 
     if (import.meta.env.DEV) {
       console.log('[payments] create-session ->', endpoint);
     }
 
-    const response = await fetch(endpoint, {
+    const response = await fetchWithCSRFRetry(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
-        'X-CSRF-Token': csrfToken
       },
       body: JSON.stringify({ orderId, paymentMethod })
     });
@@ -113,14 +156,11 @@ export const paymentService = {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
-    const csrfToken = await getCSRFToken();
-
-    const response = await fetch(`${API_BASE_URL}/api/payments/capture`, {
+    const response = await fetchWithCSRFRetry(`${API_BASE_URL}/api/payments/capture`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
-        'X-CSRF-Token': csrfToken
       },
       body: JSON.stringify({ paypalOrderId, orderId })
     });
@@ -138,14 +178,11 @@ export const paymentService = {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
-    const csrfToken = await getCSRFToken();
-
-    const response = await fetch(`${API_BASE_URL}/api/payments/confirm-bank`, {
+    const response = await fetchWithCSRFRetry(`${API_BASE_URL}/api/payments/confirm-bank`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
-        'X-CSRF-Token': csrfToken
       },
       body: JSON.stringify({ orderId, transactionId })
     });
@@ -160,19 +197,16 @@ export const paymentService = {
 
   // Create Webpay transaction
   async createWebpayTransaction(orderId) {
-    const csrfToken = await getCSRFToken();
     const { data: { session } } = await supabase.auth.getSession();
 
     const headers = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
     };
-    if (csrfToken) headers['x-csrf-token'] = csrfToken;
     if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
 
-    const response = await fetch(`${API_BASE_URL}/api/payments/webpay/create`, {
+    const response = await fetchWithCSRFRetry(`${API_BASE_URL}/api/payments/webpay/create`, {
       method: 'POST',
-      credentials: 'include',
       headers,
       body: JSON.stringify({ orderId }),
     });
@@ -192,14 +226,11 @@ export const paymentService = {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
-    const csrfToken = await getCSRFToken();
-
-    const response = await fetch(`${API_BASE_URL}/api/payments/webpay/commit`, {
+    const response = await fetchWithCSRFRetry(`${API_BASE_URL}/api/payments/webpay/commit`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
-        'X-CSRF-Token': csrfToken
       },
       body: JSON.stringify({ token: token_ws })
     });

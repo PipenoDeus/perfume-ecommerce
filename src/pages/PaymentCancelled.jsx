@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import './PaymentSuccess.css';
 
 const PaymentCancelled = () => {
   const [searchParams] = useSearchParams();
@@ -9,20 +10,22 @@ const PaymentCancelled = () => {
   const tbkSession = searchParams.get('TBK_ID_SESION');
 
   return (
-    <div style={{ maxWidth: 760, margin: '2rem auto', padding: '1rem' }}>
-      <h1>Pago cancelado</h1>
-      <p>El pago fue cancelado o abortado en {provider.toUpperCase()}.</p>
+    <div className="payment-success-page">
+      <div className="payment-card error">
+        <h1>Pago cancelado</h1>
+        <p>El pago fue cancelado o interrumpido en {provider.toUpperCase()}.</p>
 
-      {(tbkOrder || tbkSession) && (
-        <div style={{ marginTop: '1rem', padding: '1rem', background: '#f6f6f6', borderRadius: 8 }}>
-          {tbkOrder && <p><strong>Orden:</strong> {tbkOrder}</p>}
-          {tbkSession && <p><strong>Sesión:</strong> {tbkSession}</p>}
+        {(tbkOrder || tbkSession) && (
+          <div className="payment-details">
+            {tbkOrder && <p><strong>Orden:</strong> {tbkOrder}</p>}
+            {tbkSession && <p><strong>Sesión:</strong> {tbkSession}</p>}
+          </div>
+        )}
+
+        <div className="payment-actions">
+          <Link to="/cart">Volver al carrito</Link>
+          <Link to="/products">Seguir comprando</Link>
         </div>
-      )}
-
-      <div style={{ marginTop: '1rem', display: 'flex', gap: '0.75rem' }}>
-        <Link to="/cart">Volver al carrito</Link>
-        <Link to="/products">Seguir comprando</Link>
       </div>
     </div>
   );

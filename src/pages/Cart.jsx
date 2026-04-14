@@ -17,6 +17,18 @@ const Cart = () => {
   const [regions, setRegions] = useState([]);
 
   useEffect(() => {
+    if (!user) {
+      setShippingAddress({ address: '', city: '' });
+      return;
+    }
+
+    setShippingAddress((prev) => ({
+      address: prev.address || user?.user_metadata?.address || '',
+      city: prev.city || user?.user_metadata?.city || '',
+    }));
+  }, [user, user?.user_metadata?.address, user?.user_metadata?.city]);
+
+  useEffect(() => {
     fetch(`${API_BASE_URL}/api/regions`)
       .then((res) => res.json())
       .then((data) => setRegions(Array.isArray(data) ? data : []))

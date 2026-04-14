@@ -77,6 +77,8 @@ const Navbar = ({ cartCount }) => {
     navigate(`/product/${perfumeId}`);
   };
 
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || '';
+  const firstName = displayName.trim().split(/\s+/)[0] || displayName;
 
   return (
     <nav className="navbar">
@@ -155,8 +157,10 @@ const Navbar = ({ cartCount }) => {
               <button
                 className="nav-link user-menu-btn"
                 onClick={() => setShowUserMenu(!showUserMenu)}
+                title={displayName}
               >
-                👤 {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                <span className="user-menu-icon" aria-hidden="true">👤</span>
+                <span className="user-menu-name">{firstName}</span>
               </button>
               {showUserMenu && (
                 <div className="user-menu-dropdown">
