@@ -14,7 +14,7 @@ export const translations = {
     },
     // Home
     home: {
-      titulo: 'Bienvenido a QamarPerfumes',
+      titulo: 'Bienvenido a Bego Qamar',
       subtitulo: 'Descubre los mejores aromas para cada ocasión',
       botonComprar: 'Comprar Ahora',
       destacadosTitulo: 'Novedades',
@@ -31,7 +31,7 @@ export const translations = {
       soporte24: 'Soporte 24/7',
       soporte24Desc: 'Siempre aquí para ayudarte',
       acercaDe: 'Acerca de Nosotros',
-      acercaDeDesc: 'QamarPerfumes es tu destino premium para fragancias de lujo de todo el mundo. Seleccionamos los mejores perfumes para ayudarte a expresar tu estilo único.',
+      acercaDeDesc: 'Bego Qamar es tu destino premium para fragancias de lujo de todo el mundo. Seleccionamos los mejores perfumes para ayudarte a expresar tu estilo único.',
     },
     // Products
     products: {
@@ -95,7 +95,7 @@ export const translations = {
       seleccionarRegion: 'Selecciona una región',
       metodoPago: 'Método de Pago',
       metodoPaypal: 'PayPal',
-      metodoWebpay: 'Webpay Plus',
+      metodoFlow: 'Flow',
       metodoBanco: 'Transferencia Bancaria (Chile)',
       completarDatosEnvio: 'Completa los datos de envío.',
       iniciaSesionParaComprar: 'Inicia sesión para continuar con la compra.',
@@ -147,7 +147,7 @@ export const translations = {
     },
     payment: {
       title: 'Pago realizado',
-      webpayTitle: 'Pago realizado',
+      flowTitle: 'Pago realizado',
       confirming: 'Confirmando tu pago...',
       success: 'Pago realizado correctamente.',
       successGeneric: 'Pago realizado correctamente.',
@@ -164,8 +164,8 @@ export const translations = {
     },
     aboutPage: {
       badge: 'Nuestra esencia',
-      title: 'Acerca de QamarPerfumes',
-      description: 'QamarPerfumes es una tienda independiente especializada en perfumes árabes, con una selección pensada para quienes buscan aromas con identidad, elegancia y carácter.',
+      title: 'Acerca de Bego Qamar',
+      description: 'Bego Qamar es una tienda independiente especializada en perfumes árabes, con una selección pensada para quienes buscan aromas con identidad, elegancia y carácter.',
       missionTitle: 'Nuestra propuesta',
       missionText: 'Trabajamos con fragancias árabes cuidadosamente seleccionadas para ofrecer calidad, estilo y una experiencia de compra cercana y confiable.',
       shippingTitle: 'Cobertura en Chile',
@@ -175,11 +175,11 @@ export const translations = {
     faqPage: {
       badge: 'Preguntas frecuentes',
       title: 'Resolvemos tus dudas',
-      intro: 'Aquí encontrarás respuestas rápidas sobre envíos, pagos y funcionamiento de QamarPerfumes.',
+      intro: 'Aquí encontrarás respuestas rápidas sobre envíos, pagos y funcionamiento de Bego Qamar.',
       q1: '¿Realizan envíos a todo Chile?',
       a1: 'Sí. Despachamos a todas las regiones de Chile y te compartimos seguimiento cuando tu pedido es enviado.',
       q2: '¿Qué métodos de pago aceptan?',
-      a2: 'Actualmente puedes pagar con Webpay Plus y PayPal, según la opción que prefieras al finalizar tu compra.',
+      a2: 'Actualmente puedes pagar con Flow o PayPal, según la opción que prefieras al finalizar tu compra.',
       q3: '¿Los perfumes son originales?',
       a3: 'Sí. Trabajamos con perfumes árabes auténticos seleccionados cuidadosamente por su calidad y presentación.',
       q4: '¿Cómo puedo hacer una consulta?',
@@ -208,15 +208,15 @@ export const translations = {
     },
     termsPage: {
       title: 'Términos y Condiciones',
-      intro: 'Al comprar en QamarPerfumes aceptas nuestras condiciones de venta, despacho y atención al cliente.',
+      intro: 'Al comprar en Bego Qamar aceptas nuestras condiciones de venta, despacho y atención al cliente.',
       point1: 'Los precios y el stock publicados pueden cambiar sin aviso previo.',
       point2: 'Los pedidos se consideran confirmados una vez validado el pago.',
       point3: 'Nos reservamos el derecho de actualizar estas condiciones para mejorar el servicio.',
     },
     // Footer
     footer: {
-      acercaDe: 'Acerca de QamarPerfumes',
-      acercaDeDesc: 'QamarPerfumes es una tienda independiente dedicada a la venta de perfumes árabes auténticos, con envíos disponibles para todas las regiones de Chile.',
+      acercaDe: 'Acerca de Bego Qamar',
+      acercaDeDesc: 'Bego Qamar es una tienda independiente dedicada a la venta de perfumes árabes auténticos, con envíos disponibles para todas las regiones de Chile.',
       enlaces: 'Enlaces Rápidos',
       tienda: 'Tienda',
       inicio: 'Inicio',
@@ -251,7 +251,7 @@ export const translations = {
     },
     // Home
     home: {
-      titulo: 'Welcome to QamarPerfumes',
+      titulo: 'Welcome to Bego Qamar',
       subtitulo: 'Discover the finest fragrances for every occasion',
       botonComprar: 'Shop Now',
       destacadosTitulo: 'New Arrivals',
@@ -268,7 +268,7 @@ export const translations = {
       soporte24: '24/7 Support',
       soporte24Desc: 'Always here to help',
       acercaDe: 'About Us',
-      acercaDeDesc: 'QamarPerfumes is your premium destination for luxury fragrances from around the world. We curate a selection of the finest perfumes to help you express your unique style.',
+      acercaDeDesc: 'Bego Qamar is your premium destination for luxury fragrances from around the world. We curate a selection of the finest perfumes to help you express your unique style.',
     },
     // Products
     products: {
@@ -332,7 +332,7 @@ export const translations = {
       seleccionarRegion: 'Select a region',
       metodoPago: 'Payment Method',
       metodoPaypal: 'PayPal',
-      metodoWebpay: 'Webpay Plus',
+      metodoFlow: 'Flow',
       metodoBanco: 'Bank Transfer (Chile)',
       completarDatosEnvio: 'Complete the shipping details.',
       iniciaSesionParaComprar: 'Login to continue checkout.',
@@ -384,7 +384,7 @@ export const translations = {
     },
     payment: {
       title: 'Payment completed',
-      webpayTitle: 'Payment completed',
+      flowTitle: 'Payment completed',
       confirming: 'Confirming your payment...',
       success: 'Payment completed successfully.',
       successGeneric: 'Payment completed successfully.',
@@ -410,8 +410,8 @@ export const translations = {
     },
     aboutPage: {
       badge: 'Our essence',
-      title: 'About QamarPerfumes',
-      description: 'QamarPerfumes is an independent store specialized in Arabic perfumes, curated for people looking for fragrances with identity, elegance, and character.',
+      title: 'About Bego Qamar',
+      description: 'Bego Qamar is an independent store specialized in Arabic perfumes, curated for people looking for fragrances with identity, elegance, and character.',
       missionTitle: 'What we offer',
       missionText: 'We work with carefully selected Arabic fragrances to provide quality, style, and a close, trustworthy shopping experience.',
       shippingTitle: 'Coverage across Chile',
@@ -421,11 +421,11 @@ export const translations = {
     faqPage: {
       badge: 'Frequently asked questions',
       title: 'We answer your questions',
-      intro: 'Here you will find quick answers about shipping, payments, and how QamarPerfumes works.',
+      intro: 'Here you will find quick answers about shipping, payments, and how Bego Qamar works.',
       q1: 'Do you ship throughout Chile?',
       a1: 'Yes. We ship to all regions of Chile and share tracking information once your order has been sent.',
       q2: 'Which payment methods do you accept?',
-      a2: 'You can currently pay with Webpay Plus or PayPal, depending on your preferred checkout option.',
+      a2: 'You can currently pay with Flow or PayPal, depending on your preferred checkout option.',
       q3: 'Are the perfumes original?',
       a3: 'Yes. We work with authentic Arabic perfumes carefully selected for their quality and presentation.',
       q4: 'How can I contact you?',
@@ -454,15 +454,15 @@ export const translations = {
     },
     termsPage: {
       title: 'Terms and Conditions',
-      intro: 'By shopping at QamarPerfumes, you accept our sales, shipping, and customer service terms.',
+      intro: 'By shopping at Bego Qamar, you accept our sales, shipping, and customer service terms.',
       point1: 'Published prices and stock may change without prior notice.',
       point2: 'Orders are considered confirmed once payment has been validated.',
       point3: 'We reserve the right to update these terms to improve the service.',
     },
     // Footer
     footer: {
-      acercaDe: 'About QamarPerfumes',
-      acercaDeDesc: 'QamarPerfumes is an independent store dedicated to authentic Arabic perfumes, with shipping available to all regions of Chile.',
+      acercaDe: 'About Bego Qamar',
+      acercaDeDesc: 'Bego Qamar is an independent store dedicated to authentic Arabic perfumes, with shipping available to all regions of Chile.',
       enlaces: 'Quick Links',
       tienda: 'Shop',
       inicio: 'Home',

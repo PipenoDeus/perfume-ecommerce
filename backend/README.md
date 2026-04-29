@@ -19,6 +19,11 @@ PAYPAL_MODE=sandbox
 PAYPAL_CLIENT_ID=your_paypal_client_id
 PAYPAL_CLIENT_SECRET=your_paypal_client_secret
 
+# Flow
+FLOW_ENV=sandbox
+FLOW_API_KEY=your_flow_api_key
+FLOW_SECRET_KEY=your_flow_secret_key
+
 BANK_ACCOUNT_NUMBER=your_bank_account
 BANK_CODE=your_bank_code
 ```

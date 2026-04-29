@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 import { generateCSRFToken, validateCSRFToken } from './middleware/csrf.js';
 import { generalLimiter, orderLimiter } from './middleware/rateLimiter.js';
@@ -9,7 +11,10 @@ import ordersRouter from './routes/orders.js';
 import paymentsRouter from './routes/payments.js';
 import regionsRouter from './routes/regions.js';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -33,25 +38,116 @@ app.use(helmet({
 }));
 
 // CORS configuration
+const normalizeOrigin = (origin) => {
+  if (!origin) return '';
+  return origin.trim().replace(/\/+$/, '');
+};
+
+const normalizePath = (requestPath) => {
+  if (!requestPath) return '/';
+  if (requestPath === '/') return '/';
+  return requestPath.replace(/\/+$/, '');
+};
+
 const allowedOrigins = new Set(
   (process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:5174')
     .split(',')
-    .map((origin) => origin.trim())
+    .map((origin) => normalizeOrigin(origin))
     .filter(Boolean)
 );
 
-app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.has(origin)) {
-      callback(null, true);
-      return;
-    }
-    callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
-}));
+const flowCallbackOrigins = new Set([
+  'https://sandbox.flow.cl',
+  'https://www.flow.cl',
+]);
+
+const flowCallbackPaths = new Set([
+  '/api/payments/flow/confirmation',
+  '/api/payments/flow/return',
+]);
+
+const CORS_DEBUG = process.env.CORS_DEBUG === 'true';
+
+// Log CORS DEBUG status at startup
+console.log(`[CORS] Debug mode: ${CORS_DEBUG ? 'ON' : 'OFF'} (CORS_DEBUG=${process.env.CORS_DEBUG})`);
+console.log(`[CORS] Allowed Origins:`, Array.from(allowedOrigins));
+console.log(`[CORS] Flow Callback Origins:`, Array.from(flowCallbackOrigins));
+console.log(`[CORS] Flow Callback Paths:`, Array.from(flowCallbackPaths));
+
+const isAllowedCorsOrigin = (origin, requestPath) => {
+  const normalizedOrigin = normalizeOrigin(origin);
+  const normalizedPath = normalizePath(requestPath);
+  const isFlowCallbackPath = flowCallbackPaths.has(normalizedPath);
+
+  if (!normalizedOrigin || allowedOrigins.has(normalizedOrigin)) {
+    return true;
+  }
+
+  // Some browser/payment-provider POST redirects can arrive as Origin: "null".
+  // Accept this only for Flow callback endpoints.
+  if (normalizedOrigin === 'null') {
+    return isFlowCallbackPath;
+  }
+
+  return isFlowCallbackPath && flowCallbackOrigins.has(normalizedOrigin);
+};
+
+// Pre-CORS request logger to catch requests before CORS middleware
+app.use((req, res, next) => {
+  if (CORS_DEBUG && (req.path.includes('/payments/flow') || req.method === 'POST')) {
+    console.log('[CORS PRE] Request incoming:', {
+      method: req.method,
+      path: req.path,
+      origin: req.headers.origin || '[NO ORIGIN HEADER]',
+      referer: req.headers.referer || null,
+      host: req.headers.host || null,
+      userAgent: req.headers['user-agent']?.substring(0, 50) || null,
+    });
+  }
+  next();
+});
+
+app.use((req, res, next) => {
+  cors({
+    origin: (origin, callback) => {
+      if (CORS_DEBUG) {
+        console.log('[CORS DEBUG] Incoming request:', {
+          method: req.method,
+          path: req.path,
+          origin: origin || null,
+          normalizedOrigin: normalizeOrigin(origin),
+          referer: req.headers.referer || null,
+          host: req.headers.host || null,
+        });
+      }
+
+      if (isAllowedCorsOrigin(origin, req.path)) {
+        if (CORS_DEBUG) {
+          console.log('[CORS DEBUG] Allowed request');
+        }
+        callback(null, true);
+        return;
+      }
+
+      if (CORS_DEBUG) {
+        console.warn('[CORS DEBUG] Blocked request:', {
+          method: req.method,
+          path: req.path,
+          origin: origin || null,
+          normalizedOrigin: normalizeOrigin(origin),
+          allowedOrigins: Array.from(allowedOrigins),
+          flowCallbackOrigins: Array.from(flowCallbackOrigins),
+          flowCallbackPaths: Array.from(flowCallbackPaths),
+        });
+      }
+
+      callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+  })(req, res, next);
+});
 
 // Rate limiting - general
 app.use(generalLimiter);
@@ -65,6 +161,17 @@ app.use(generateCSRFToken);
 
 // CSRF validation for state-changing operations
 app.use((req, res, next) => {
+  const csrfExemptPaths = new Set([
+    '/api/payments/paypal-webhook',
+    '/api/payments/flow/confirmation',
+    '/api/payments/flow/return',
+  ]);
+
+  if (csrfExemptPaths.has(req.path)) {
+    next();
+    return;
+  }
+
   if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
     validateCSRFToken(req, res, next);
   } else {

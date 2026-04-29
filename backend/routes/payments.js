@@ -1,14 +1,11 @@
 import express from 'express';
 import axios from 'axios';
-import transbank from 'transbank-sdk';
+import crypto from 'crypto';
 import { authenticateUser } from '../middleware/auth.js';
 import { paymentLimiter } from '../middleware/rateLimiter.js';
 import {
   getOrder,
-  updateOrderStatus,
-  saveWebpaySession,
-  getOrderByWebpayToken,
-  saveWebpayResult
+  updateOrderStatus
 } from '../services/orderService.js';
 import {
   verifyPayPalSignature,
@@ -18,46 +15,128 @@ import {
 import { encryptData } from '../services/encryptionService.js';
 import AuditLogger from '../services/auditLogger.js';
 
-const {
-  WebpayPlus,
-  Options,
-  Environment,
-  IntegrationCommerceCodes,
-  IntegrationApiKeys
-} = transbank;
-
 const router = express.Router();
-
-// ── Webpay: usar credenciales oficiales de integración o producción ──
-const isProduction = (process.env.WEBPAY_ENV || 'INTEGRATION') === 'PRODUCTION';
-
-const webpayOptions = isProduction
-  ? new Options(
-      process.env.WEBPAY_COMMERCE_CODE,
-      process.env.WEBPAY_API_KEY,
-      Environment.Production
-    )
-  : new Options(
-      IntegrationCommerceCodes.WEBPAY_PLUS,
-      IntegrationApiKeys.WEBPAY,
-      Environment.Integration
-    );
-
-console.log('[Webpay] Modo:', isProduction ? 'PRODUCCIÓN' : 'INTEGRACIÓN');
-console.log('[Webpay] Commerce Code:', isProduction
-  ? process.env.WEBPAY_COMMERCE_CODE
-  : IntegrationCommerceCodes.WEBPAY_PLUS
-);
-
-const webpayTx = new WebpayPlus.Transaction(webpayOptions);
 
 const PAYPAL_API = process.env.PAYPAL_MODE === 'live'
   ? 'https://api.paypal.com'
   : 'https://api.sandbox.paypal.com';
 
+const flowEnv = String(process.env.FLOW_ENV || 'sandbox').trim().toLowerCase();
+const FLOW_API_BASE = flowEnv === 'production'
+  ? 'https://www.flow.cl/api'
+  : 'https://sandbox.flow.cl/api';
+
 const getFrontendBaseUrl = () => {
   const raw = process.env.FRONTEND_URL || 'http://localhost:5173';
   return raw.split(',')[0].trim();
+};
+
+const buildFlowSignature = (params, secretKey) => {
+  const data = Object.keys(params)
+    .filter((key) => params[key] !== undefined && params[key] !== null && key !== 's')
+    .sort()
+    .map((key) => `${key}=${params[key]}`)
+    .join('&');
+
+  return crypto
+    .createHmac('sha256', secretKey)
+    .update(data)
+    .digest('hex');
+};
+
+const flowRequest = async (endpoint, params = {}, method = 'POST') => {
+  const apiKey = process.env.FLOW_API_KEY;
+  const secretKey = process.env.FLOW_SECRET_KEY;
+  const looksLikePlaceholder = (value) => /^TU_FLOW_/i.test(String(value || '').trim());
+
+  if (!apiKey || !secretKey) {
+    throw new Error('Flow credentials are missing');
+  }
+
+  if (looksLikePlaceholder(apiKey) || looksLikePlaceholder(secretKey)) {
+    throw new Error('Flow credentials are placeholders. Reemplaza FLOW_API_KEY y FLOW_SECRET_KEY por credenciales reales.');
+  }
+
+  const baseParams = {
+    apiKey,
+    ...params,
+  };
+
+  const signature = buildFlowSignature(baseParams, secretKey);
+  const signedParams = {
+    ...baseParams,
+    s: signature,
+  };
+
+  if (method === 'GET') {
+    const query = new URLSearchParams(signedParams).toString();
+    try {
+      const response = await axios.get(`${FLOW_API_BASE}${endpoint}?${query}`);
+      return response.data;
+    } catch (error) {
+      const status = error?.response?.status;
+      const payload = error?.response?.data;
+      const details = typeof payload === 'string' ? payload : JSON.stringify(payload || {});
+      throw new Error(`Flow API GET ${endpoint} failed (${status || 'no-status'}): ${details}`);
+    }
+  }
+
+  const body = new URLSearchParams(signedParams).toString();
+  try {
+    const response = await axios.post(`${FLOW_API_BASE}${endpoint}`, body, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    });
+
+    return response.data;
+  } catch (error) {
+    const status = error?.response?.status;
+    const payload = error?.response?.data;
+    const details = typeof payload === 'string' ? payload : JSON.stringify(payload || {});
+    throw new Error(`Flow API POST ${endpoint} failed (${status || 'no-status'}): ${details}`);
+  }
+};
+
+const createFlowPayment = async (order, reqUserEmail = '') => {
+  const amount = Math.round(Number(order.total || 0));
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error('Monto inválido para Flow');
+  }
+
+  const payerEmail = String(reqUserEmail || '').trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payerEmail)) {
+    throw new Error('Flow requiere un email válido en la cuenta del usuario para continuar con el pago.');
+  }
+
+  const backendBaseUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+  const frontendBaseUrl = getFrontendBaseUrl();
+
+  const flowPayload = {
+    commerceOrder: String(order.id),
+    subject: `Pedido ${order.id}`,
+    currency: 'CLP',
+    amount,
+    email: payerEmail,
+    urlConfirmation: `${backendBaseUrl}/api/payments/flow/confirmation`,
+    urlReturn: `${backendBaseUrl}/api/payments/flow/return?provider=flow&orderId=${encodeURIComponent(order.id)}`,
+  };
+
+  const response = await flowRequest('/payment/create', flowPayload);
+
+  return {
+    token: response?.token,
+    url: response?.url,
+    flowOrder: response?.flowOrder,
+  };
+};
+
+const getFlowPaymentStatus = async (token) => {
+  if (!token) {
+    throw new Error('Flow token is required');
+  }
+
+  return flowRequest('/payment/getStatus', { token }, 'GET');
 };
 
 const getPayPalAccessToken = async () => {
@@ -201,6 +280,20 @@ router.post('/create-session', authenticateUser, paymentLimiter, async (req, res
         orderId: orderId,
         approvalUrl: paypalOrder.approveLink
       });
+    } else if (paymentMethod === 'flow') {
+      const flowSession = await createFlowPayment(order, req.user?.email);
+
+      if (!flowSession?.token || !flowSession?.url) {
+        throw new Error('Failed to create Flow payment');
+      }
+
+      const approvalUrl = `${flowSession.url}${flowSession.url.includes('?') ? '&' : '?'}token=${encodeURIComponent(flowSession.token)}`;
+
+      return res.json({
+        sessionId: flowSession.token,
+        orderId,
+        approvalUrl,
+      });
     } else if (paymentMethod === 'bank') {
       // Return reference only, encrypt sensitive bank details if needed
       const bankDetails = {
@@ -237,148 +330,136 @@ router.post('/create-session', authenticateUser, paymentLimiter, async (req, res
   }
 });
 
-// Webpay Plus create transaction
-router.post('/webpay/create', authenticateUser, paymentLimiter, async (req, res) => {
+router.post('/flow/confirmation', async (req, res) => {
   try {
-    const { orderId } = req.body;
+    const token = req.body?.token || req.query?.token;
+    if (!token) {
+      return res.status(400).json({ error: 'Missing token' });
+    }
+
+    const flowResult = await getFlowPaymentStatus(token);
+    const orderId = String(flowResult?.commerceOrder || '');
 
     if (!orderId || !isUuid(orderId)) {
-      return res.status(400).json({ error: 'orderId inválido' });
+      return res.status(400).json({ error: 'Invalid commerce order' });
     }
 
     const order = await getOrder(orderId);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-    if (order.user_id !== req.user.id) return res.status(403).json({ error: 'Unauthorized' });
-    if (order.status !== 'pending') return res.status(400).json({ error: 'Order already processed' });
-
-    // Webpay constraints
-    const buyOrder = String(orderId).replace(/-/g, '').slice(-26); // <= 26
-    const sessionId = String(orderId); // UUID completo para recuperar orden real
-    const amount = Math.round(Number(order.total || 0)); // CLP entero
-
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return res.status(400).json({ error: 'Monto inválido para Webpay' });
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
     }
 
-    const backendBaseUrl = process.env.BACKEND_URL || 'http://localhost:3000';
-    const returnUrl = `${backendBaseUrl}/api/payments/webpay/return`;
-    const tx = await webpayTx.create(buyOrder, sessionId, amount, returnUrl);
+    const paid = Number(flowResult?.status) === 2;
+    if (paid && order.status !== 'paid') {
+      const transactionId = String(flowResult?.flowOrder || token);
+      await updateOrderStatus(orderId, 'paid', transactionId);
+    }
 
-    await saveWebpaySession(orderId, {
-      buyOrder,
-      sessionId,
-      token: tx.token,
-    });
-
-    return res.json({
-      url: tx.url,
-      token: tx.token,
-      buyOrder,
-      sessionId
-    });
+    return res.status(200).json({ ok: true });
   } catch (error) {
-    console.error('[webpay/create] error message:', error?.message);
-    console.error('[webpay/create] status:', error?.response?.status);
-    console.error('[webpay/create] data:', error?.response?.data);
-    return res.status(500).json({ error: error?.message || 'Webpay create failed' });
+    console.error('[flow/confirmation] error:', error?.message || error);
+    return res.status(500).json({ error: error?.message || 'Flow confirmation failed' });
   }
 });
 
-// Webpay Plus commit transaction
-router.post('/webpay/commit', authenticateUser, paymentLimiter, async (req, res) => {
+router.all('/flow/return', async (req, res) => {
   try {
-    const token = req.body?.token_ws || req.body?.token;
-    if (!token) return res.status(400).json({ error: 'token requerido' });
+    const frontendBaseUrl = getFrontendBaseUrl();
+    const token = String(req.body?.token || req.query?.token || '').trim();
+    let orderId = String(req.body?.orderId || req.query?.orderId || '').trim();
+    let status = String(req.body?.status || req.query?.status || '').trim().toLowerCase();
 
-    const existingOrder = await getOrderByWebpayToken(token);
-    if (existingOrder?.status === 'paid') {
-      return res.json({
-        ok: true,
-        status: 'paid',
-        orderId: existingOrder.id,
-        transactionId: existingOrder.webpay_authorization_code || token,
-        result: existingOrder.webpay_response || null,
-      });
+    if (token) {
+      try {
+        const flowResult = await getFlowPaymentStatus(token);
+        orderId = orderId || String(flowResult?.commerceOrder || '').trim();
+
+        const flowStatus = Number(flowResult?.status || 0);
+        if (!status) {
+          if (flowStatus === 2) {
+            status = 'paid';
+          } else if (flowStatus === 3 || flowStatus === 4) {
+            status = 'failed';
+          } else {
+            status = 'pending';
+          }
+        }
+      } catch (error) {
+        console.error('[flow/return] status lookup error:', error?.message || error);
+      }
     }
 
-    const result = await webpayTx.commit(token);
-    const orderId = result?.session_id; // UUID real
-    if (!orderId || !isUuid(orderId)) {
-      return res.status(400).json({ error: 'session_id inválido en respuesta Webpay' });
+    const redirectParams = new URLSearchParams({ provider: 'flow' });
+
+    if (orderId) {
+      redirectParams.set('orderId', orderId);
+    }
+
+    if (token) {
+      redirectParams.set('token', token);
+    }
+
+    if (status) {
+      redirectParams.set('status', status);
+    }
+
+    return res.redirect(`${frontendBaseUrl}/payment-success?${redirectParams.toString()}`);
+  } catch (error) {
+    console.error('[flow/return] error:', error?.message || error);
+    return res.status(500).json({ error: error?.message || 'Flow return redirect failed' });
+  }
+});
+
+router.post('/flow/confirm', authenticateUser, paymentLimiter, async (req, res) => {
+  try {
+    const { token, orderId } = req.body;
+
+    if (!token || !orderId) {
+      return res.status(400).json({ error: 'Missing token or orderId' });
     }
 
     const order = await getOrder(orderId);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-    if (order.user_id !== req.user.id) return res.status(403).json({ error: 'Unauthorized' });
-
-    const isAuthorized =
-      result?.status === 'AUTHORIZED' && result?.response_code === 0;
-
-    const transactionId =
-      result?.authorization_code ||
-      result?.buy_order ||
-      token;
-
-    await updateOrderStatus(orderId, isAuthorized ? 'paid' : 'failed', transactionId);
-    await saveWebpayResult(orderId, token, result);
-
-    return res.json({
-      ok: true,
-      status: isAuthorized ? 'paid' : 'failed',
-      orderId,
-      transactionId,
-      result
-    });
-  } catch (error) {
-    console.error('[webpay/commit] error message:', error?.message);
-    console.error('[webpay/commit] status:', error?.response?.status);
-    console.error('[webpay/commit] data:', error?.response?.data);
-    return res.status(500).json({ error: error?.message || 'Webpay commit failed' });
-  }
-});
-
-// Webpay return handler (éxito o cancelación)
-router.all('/webpay/return', async (req, res) => {
-  try {
-    const tokenWs = req.body?.token_ws || req.query?.token_ws;
-    const tbkToken = req.body?.TBK_TOKEN || req.query?.TBK_TOKEN;
-    const tbkOrder = req.body?.TBK_ORDEN_COMPRA || req.query?.TBK_ORDEN_COMPRA;
-    const tbkSession = req.body?.TBK_ID_SESION || req.query?.TBK_ID_SESION;
-    const frontend = getFrontendBaseUrl();
-
-    if (tokenWs) {
-      const result = await webpayTx.commit(tokenWs);
-      const orderId = result?.session_id;
-      const isAuthorized = result?.status === 'AUTHORIZED' && result?.response_code === 0;
-      const transactionId = result?.authorization_code || result?.buy_order || tokenWs;
-
-      if (orderId && isUuid(orderId)) {
-        await updateOrderStatus(orderId, isAuthorized ? 'paid' : 'failed', transactionId);
-        await saveWebpayResult(orderId, tokenWs, result);
-      }
-
-      if (isAuthorized) {
-        return res.redirect(
-          `${frontend}/payment-success?provider=webpay&status=paid&orderId=${encodeURIComponent(orderId || '')}`
-        );
-      }
-
-      return res.redirect(
-        `${frontend}/payment-cancelled?provider=webpay&status=failed&orderId=${encodeURIComponent(orderId || '')}`
-      );
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
     }
 
-    if (tbkToken) {
-      return res.redirect(
-        `${frontend}/payment-cancelled?provider=webpay&TBK_TOKEN=${encodeURIComponent(tbkToken)}&TBK_ORDEN_COMPRA=${encodeURIComponent(tbkOrder || '')}&TBK_ID_SESION=${encodeURIComponent(tbkSession || '')}`
-      );
+    if (order.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    return res.redirect(`${frontend}/payment-cancelled?provider=webpay`);
+    if (order.status === 'paid') {
+      return res.json({ status: 'paid', orderId, transactionId: order.transaction_id || token });
+    }
+
+    const flowResult = await getFlowPaymentStatus(token);
+    const commerceOrder = String(flowResult?.commerceOrder || '');
+
+    if (commerceOrder !== String(orderId)) {
+      return res.status(400).json({ error: 'Flow commerceOrder does not match orderId' });
+    }
+
+    const paymentAmount = Number(flowResult?.amount || 0);
+    if (!validatePaymentAmount(order.total, paymentAmount)) {
+      return res.status(400).json({ error: 'Payment amount mismatch' });
+    }
+
+    const flowStatus = Number(flowResult?.status || 0);
+    const transactionId = String(flowResult?.flowOrder || token);
+
+    if (flowStatus === 2) {
+      await updateOrderStatus(orderId, 'paid', transactionId);
+      return res.json({ status: 'paid', orderId, transactionId });
+    }
+
+    if (flowStatus === 3 || flowStatus === 4) {
+      await updateOrderStatus(orderId, 'failed', transactionId);
+      return res.json({ status: 'failed', orderId, transactionId });
+    }
+
+    return res.json({ status: 'pending', orderId, transactionId });
   } catch (error) {
-    console.error('[webpay/return] error:', error);
-    const frontend = getFrontendBaseUrl();
-    return res.redirect(`${frontend}/payment-cancelled?provider=webpay&status=error`);
+    console.error('[flow/confirm] error:', error?.message || error);
+    return res.status(500).json({ error: error?.message || 'Flow confirm failed' });
   }
 });
 

@@ -43,7 +43,7 @@ const Footer = () => {
       </div>
 
       <div className="footer-bottom">
-        <p>&copy; {currentYear} QamarPerfumes. {t('footer.derechosReservados')}</p>
+        <p>&copy; {currentYear} Bego Qamar. {t('footer.derechosReservados')}</p>
         <div className="social-links">
           <a href="#facebook" className="social-icon">f</a>
           <a href="#instagram" className="social-icon">📷</a>

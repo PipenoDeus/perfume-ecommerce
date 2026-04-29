@@ -10,19 +10,20 @@ const PaymentSuccess = () => {
   const { t } = useContext(LanguageContext);
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
-  const tokenWs = searchParams.get('token_ws');
   const provider = searchParams.get('provider');
   const orderId = searchParams.get('orderId');
   const paymentStatus = searchParams.get('status');
-  const isWebpay = provider === 'webpay' || Boolean(tokenWs);
+  const isFlow = provider === 'flow';
+  const flowToken = isFlow ? token : null;
+  const paypalOrderToken = !isFlow ? token : null;
 
   const initialStatus = paymentStatus === 'paid'
     ? 'success'
-    : (!token && !tokenWs ? 'error' : 'loading');
+    : (!paypalOrderToken && !flowToken ? 'error' : 'loading');
 
   const initialMessage = paymentStatus === 'paid'
     ? t('payment.successGeneric')
-    : (!token && !tokenWs ? t('payment.missingToken') : t('payment.confirming'));
+    : (!paypalOrderToken && !flowToken ? t('payment.missingToken') : t('payment.confirming'));
 
   const [status, setStatus] = useState(initialStatus);
   const [message, setMessage] = useState(initialMessage);
@@ -45,7 +46,7 @@ const PaymentSuccess = () => {
         return;
       }
 
-      if (!token && !tokenWs) {
+      if (!paypalOrderToken && !flowToken) {
         finalizedRef.current = true;
         setStatus('error');
         setMessage(t('payment.missingToken'));
@@ -57,9 +58,11 @@ const PaymentSuccess = () => {
         setMessage(t('payment.confirming'));
 
         if (!requestPromiseRef.current) {
-          requestPromiseRef.current = isWebpay
-            ? paymentService.commitWebpayTransaction(tokenWs)
-            : paymentService.capturePayPalOrder(token, orderId);
+          if (isFlow) {
+            requestPromiseRef.current = paymentService.confirmFlowPayment(flowToken, orderId);
+          } else {
+            requestPromiseRef.current = paymentService.capturePayPalOrder(paypalOrderToken, orderId);
+          }
         }
 
         const response = await requestPromiseRef.current;
@@ -90,12 +93,12 @@ const PaymentSuccess = () => {
     return () => {
       cancelled = true;
     };
-  }, [clearCart, isWebpay, orderId, paymentStatus, t, token, tokenWs]);
+  }, [clearCart, flowToken, isFlow, orderId, paymentStatus, paypalOrderToken, t]);
 
   return (
     <div className="payment-success-page">
       <div className={`payment-card ${status}`}>
-        <h1>{isWebpay ? t('payment.webpayTitle') : t('payment.title')}</h1>
+        <h1>{isFlow ? t('payment.flowTitle') : t('payment.title')}</h1>
         <p>{message}</p>
         <div className="payment-actions">
           <Link to="/profile">{t('payment.goProfile')}</Link>

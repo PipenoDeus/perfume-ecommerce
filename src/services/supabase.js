@@ -111,6 +111,21 @@ export const authService = {
     if (error) throw error;
   },
 
+  // Send password recovery email
+  async resetPasswordForEmail(email, redirectTo) {
+    const options = redirectTo ? { redirectTo } : undefined;
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, options);
+    if (error) throw error;
+    return data;
+  },
+
+  // Update current authenticated user password (used after recovery link)
+  async updatePassword(newPassword) {
+    const { data, error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) throw error;
+    return data;
+  },
+
   // Get current user
   async getCurrentUser() {
     const { data: { user } } = await supabase.auth.getUser();

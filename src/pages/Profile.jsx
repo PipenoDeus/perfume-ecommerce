@@ -6,6 +6,7 @@ import { supabase } from '../services/supabase';
 import './Profile.css';
 
 const ORDERS_PER_PAGE = 10;
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
 
 const Profile = () => {
   const { user } = useContext(AuthContext);
@@ -24,15 +25,24 @@ const Profile = () => {
     phone: '',
     address: '',
     city: '',
+    regionId: '',
+    communeId: '',
   });
   const [regions, setRegions] = useState([]);
+  const [communes, setCommunes] = useState([]);
   const [loadingRegions, setLoadingRegions] = useState(true);
+  const [loadingCommunes, setLoadingCommunes] = useState(false);
   const [editingOrderId, setEditingOrderId] = useState(null);
   const [savingOrderId, setSavingOrderId] = useState(null);
   const [orderShippingForm, setOrderShippingForm] = useState({
     address: '',
     city: '',
+    region: '',
+    regionId: '',
+    communeId: '',
   });
+  const [orderCommunes, setOrderCommunes] = useState([]);
+  const [loadingOrderCommunes, setLoadingOrderCommunes] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -102,14 +112,15 @@ const Profile = () => {
 
     const loadRegions = async () => {
       try {
-        const { data, error } = await supabase
-          .from('regions')
-          .select('id, code, name')
-          .eq('active', true)
-          .order('sort_order', { ascending: true })
-          .order('name', { ascending: true });
+        const response = await fetch(`${API_BASE_URL}/api/regions`, {
+          credentials: 'include',
+        });
 
-        if (error) throw error;
+        if (!response.ok) {
+          throw new Error(`Error loading regions: ${response.status}`);
+        }
+
+        const data = await response.json();
 
         if (isMounted) {
           setRegions(Array.isArray(data) ? data : []);
@@ -133,6 +144,96 @@ const Profile = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCommunes = async () => {
+      if (!formData.regionId) {
+        setCommunes([]);
+        return;
+      }
+
+      setLoadingCommunes(true);
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/regions/${encodeURIComponent(formData.regionId)}/communes`,
+          { credentials: 'include' }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Error loading communes: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (isMounted) {
+          setCommunes(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        console.warn('[Profile] Could not load communes:', err);
+        if (isMounted) {
+          setCommunes([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingCommunes(false);
+        }
+      }
+    };
+
+    loadCommunes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [formData.regionId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadOrderCommunes = async () => {
+      if (!orderShippingForm.regionId) {
+        setOrderCommunes([]);
+        return;
+      }
+
+      setLoadingOrderCommunes(true);
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/regions/${encodeURIComponent(orderShippingForm.regionId)}/communes`,
+          { credentials: 'include' }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Error loading order communes: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (isMounted) {
+          setOrderCommunes(Array.isArray(data) ? data : []);
+        }
+      } catch (err) {
+        console.warn('[Profile] Could not load order communes:', err);
+        if (isMounted) {
+          setOrderCommunes([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingOrderCommunes(false);
+        }
+      }
+    };
+
+    loadOrderCommunes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [orderShippingForm.regionId]);
+
   const formatPhoneInput = (value) => {
     const digits = value.replace(/\D/g, '');
     const localDigits = `9${digits.replace(/^9?/, '').slice(0, 8)}`.slice(0, digits.length > 0 ? 9 : 0);
@@ -150,6 +251,8 @@ const Profile = () => {
       phone: formatPhoneInput(profileData?.phone || user?.user_metadata?.phone || ''),
       address: profileData?.address || user?.user_metadata?.address || '',
       city: profileData?.city || user?.user_metadata?.city || '',
+      regionId: '',
+      communeId: '',
     });
   }, [
     profileData,
@@ -159,17 +262,73 @@ const Profile = () => {
     user?.user_metadata?.city,
   ]);
 
+  useEffect(() => {
+    if (!regions.length || formData.regionId) {
+      return;
+    }
+
+    const profileRegionName = String(user?.user_metadata?.region || '').trim();
+    if (!profileRegionName) {
+      return;
+    }
+
+    const matchedRegion = regions.find((region) => region.name === profileRegionName);
+    if (matchedRegion) {
+      setFormData((prev) => ({
+        ...prev,
+        regionId: String(matchedRegion.id),
+      }));
+    }
+  }, [regions, formData.regionId, user?.user_metadata?.region]);
+
+  useEffect(() => {
+    if (!communes.length || formData.communeId || !formData.city) {
+      return;
+    }
+
+    const matchedCommune = communes.find((commune) => commune.name === formData.city);
+    if (matchedCommune) {
+      setFormData((prev) => ({
+        ...prev,
+        communeId: String(matchedCommune.id),
+      }));
+    }
+  }, [communes, formData.city, formData.communeId]);
+
   const profileName = profileData?.full_name || user?.user_metadata?.full_name || '-';
   const profileEmail = profileData?.email || user?.email || '-';
   const profilePhone = profileData?.phone || user?.user_metadata?.phone || '-';
-  const profileRegion = profileData?.city || user?.user_metadata?.city || '';
+  const profileRegion = user?.user_metadata?.region || '';
+  const profileCommune = profileData?.city || user?.user_metadata?.city || '';
   const profileAddress = [
     profileData?.address || user?.user_metadata?.address,
+    profileCommune,
     profileRegion,
   ].filter(Boolean).join(', ') || '-';
 
   const handleProfileInputChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === 'regionId') {
+      setFormData((prev) => ({
+        ...prev,
+        regionId: value,
+        communeId: '',
+        city: '',
+      }));
+      return;
+    }
+
+    if (name === 'communeId') {
+      const selectedCommune = communes.find((commune) => commune.id === Number(value));
+      setFormData((prev) => ({
+        ...prev,
+        communeId: value,
+        city: selectedCommune?.name || '',
+      }));
+      return;
+    }
+
     const nextValue = name === 'phone' ? formatPhoneInput(value) : value;
 
     setFormData((prev) => ({
@@ -184,6 +343,8 @@ const Profile = () => {
       phone: formatPhoneInput(profileData?.phone || user?.user_metadata?.phone || ''),
       address: profileData?.address || user?.user_metadata?.address || '',
       city: profileData?.city || user?.user_metadata?.city || '',
+      regionId: '',
+      communeId: '',
     });
     setIsEditing(false);
     setProfileMessage('');
@@ -209,9 +370,20 @@ const Profile = () => {
         throw new Error('Espera a que carguen las regiones antes de guardar');
       }
 
-      if (!formData.city || !regions.some((region) => region.name === formData.city)) {
+      if (!formData.regionId || !regions.some((region) => region.id === Number(formData.regionId))) {
         throw new Error('Por favor selecciona una región válida');
       }
+
+      if (loadingCommunes) {
+        throw new Error('Espera a que carguen las comunas antes de guardar');
+      }
+
+      const selectedCommune = communes.find((commune) => commune.id === Number(formData.communeId));
+      if (!selectedCommune) {
+        throw new Error('Por favor selecciona una comuna válida');
+      }
+
+      const selectedRegion = regions.find((region) => region.id === Number(formData.regionId));
 
       const normalizedPhone = normalizePhone(formData.phone || '');
 
@@ -223,7 +395,7 @@ const Profile = () => {
         full_name: formData.full_name.trim() || null,
         phone: normalizedPhone,
         address: formData.address.trim() || null,
-        city: formData.city.trim() || null,
+        city: selectedCommune.name,
       };
 
       let savedProfile = null;
@@ -269,6 +441,7 @@ const Profile = () => {
           phone: payload.phone,
           address: payload.address,
           city: payload.city,
+          region: selectedRegion?.name || null,
         },
       });
 
@@ -282,6 +455,8 @@ const Profile = () => {
         phone: formatPhoneInput(savedProfile?.phone || ''),
         address: savedProfile?.address || '',
         city: savedProfile?.city || '',
+        regionId: formData.regionId,
+        communeId: formData.communeId,
       });
       setIsEditing(false);
       setProfileMessage(t('profile.perfilActualizado'));
@@ -345,6 +520,7 @@ const Profile = () => {
     const fallback = {
       address: profileData?.address || user?.user_metadata?.address || '',
       city: profileData?.city || user?.user_metadata?.city || '',
+      region: user?.user_metadata?.region || '',
     };
 
     const rawShippingAddress = order?.shipping_address;
@@ -358,13 +534,13 @@ const Profile = () => {
           try {
             return JSON.parse(rawShippingAddress);
           } catch {
-            return { address: rawShippingAddress, city: fallback.city || '' };
+            return { address: rawShippingAddress, city: fallback.city || '', region: fallback.region || '' };
           }
         })()
       : rawShippingAddress;
 
     if (typeof parsedAddress === 'string') {
-      return { address: parsedAddress, city: fallback.city || '' };
+      return { address: parsedAddress, city: fallback.city || '', region: fallback.region || '' };
     }
 
     return {
@@ -372,6 +548,7 @@ const Profile = () => {
       ...parsedAddress,
       address: parsedAddress?.address || fallback.address || '',
       city: parsedAddress?.city || parsedAddress?.region || fallback.city || '',
+      region: parsedAddress?.region || fallback.region || '',
     };
   };
 
@@ -379,7 +556,8 @@ const Profile = () => {
     const parsedAddress = parseOrderShippingAddress(order);
     const parts = [
       parsedAddress?.address,
-      parsedAddress?.city || parsedAddress?.region,
+      parsedAddress?.city,
+      parsedAddress?.region,
       parsedAddress?.reference,
     ].filter(Boolean);
 
@@ -398,14 +576,44 @@ const Profile = () => {
     setProfileMessage('');
     setProfileMessageType('');
     setEditingOrderId(order.id);
+
+    const matchedRegion = regions.find((region) => region.name === currentAddress.region);
     setOrderShippingForm({
       address: currentAddress.address || '',
       city: currentAddress.city || '',
+      region: currentAddress.region || '',
+      regionId: matchedRegion ? String(matchedRegion.id) : '',
+      communeId: '',
     });
   };
 
   const handleOrderShippingChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === 'regionId') {
+      setOrderShippingForm((prev) => ({
+        ...prev,
+        regionId: value,
+        communeId: '',
+        city: '',
+        region: '',
+      }));
+      return;
+    }
+
+    if (name === 'communeId') {
+      const selectedCommune = orderCommunes.find((commune) => commune.id === Number(value));
+      const selectedRegion = regions.find((region) => region.id === Number(orderShippingForm.regionId));
+
+      setOrderShippingForm((prev) => ({
+        ...prev,
+        communeId: value,
+        city: selectedCommune?.name || '',
+        region: selectedRegion?.name || '',
+      }));
+      return;
+    }
+
     setOrderShippingForm((prev) => ({
       ...prev,
       [name]: value,
@@ -415,8 +623,22 @@ const Profile = () => {
   const handleCancelOrderShippingEdit = () => {
     setEditingOrderId(null);
     setSavingOrderId(null);
-    setOrderShippingForm({ address: '', city: '' });
+    setOrderShippingForm({ address: '', city: '', region: '', regionId: '', communeId: '' });
   };
+
+  useEffect(() => {
+    if (!orderCommunes.length || orderShippingForm.communeId || !orderShippingForm.city) {
+      return;
+    }
+
+    const matchedCommune = orderCommunes.find((commune) => commune.name === orderShippingForm.city);
+    if (matchedCommune) {
+      setOrderShippingForm((prev) => ({
+        ...prev,
+        communeId: String(matchedCommune.id),
+      }));
+    }
+  }, [orderCommunes, orderShippingForm.city, orderShippingForm.communeId]);
 
   const handleSaveOrderShipping = async (orderId) => {
     if (!user?.id) return;
@@ -433,20 +655,33 @@ const Profile = () => {
       return;
     }
 
-    if (!orderShippingForm.address.trim() || !orderShippingForm.city.trim()) {
+    if (!orderShippingForm.address.trim() || !orderShippingForm.regionId || !orderShippingForm.communeId) {
       setError(t('cart.completarDatosEnvio'));
       return;
     }
 
-    if (!regions.some((region) => region.name === orderShippingForm.city)) {
+    const selectedRegion = regions.find((region) => region.id === Number(orderShippingForm.regionId));
+    if (!selectedRegion) {
       setError('Por favor selecciona una región válida');
+      return;
+    }
+
+    if (loadingOrderCommunes) {
+      setError('Espera a que carguen las comunas antes de guardar');
+      return;
+    }
+
+    const selectedCommune = orderCommunes.find((commune) => commune.id === Number(orderShippingForm.communeId));
+    if (!selectedCommune) {
+      setError('Por favor selecciona una comuna válida');
       return;
     }
 
     const nextShippingAddress = {
       ...parseOrderShippingAddress(orderToUpdate),
       address: orderShippingForm.address.trim(),
-      city: orderShippingForm.city.trim(),
+      city: selectedCommune.name,
+      region: selectedRegion.name,
     };
 
     try {
@@ -467,7 +702,7 @@ const Profile = () => {
           : order
       )));
       setEditingOrderId(null);
-      setOrderShippingForm({ address: '', city: '' });
+      setOrderShippingForm({ address: '', city: '', region: '', regionId: '', communeId: '' });
       setProfileMessage(t('profile.direccionActualizada'));
       setProfileMessageType('success');
     } catch (err) {
@@ -570,6 +805,54 @@ const Profile = () => {
               </div>
 
               <div className="profile-form-group">
+                <label htmlFor="regionId">{t('profile.region')}</label>
+                <select
+                  id="regionId"
+                  name="regionId"
+                  value={formData.regionId}
+                  onChange={handleProfileInputChange}
+                  disabled={loadingRegions}
+                  required
+                >
+                  <option value="">
+                    {loadingRegions ? 'Cargando regiones...' : 'Selecciona una región'}
+                  </option>
+                  {regions.map((region) => (
+                    <option key={region.id} value={region.id}>
+                      {region.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="profile-form-group">
+                <label htmlFor="communeId">Comuna</label>
+                <select
+                  id="communeId"
+                  name="communeId"
+                  value={formData.communeId}
+                  onChange={handleProfileInputChange}
+                  disabled={loadingRegions || !formData.regionId || loadingCommunes}
+                  required
+                >
+                  <option value="">
+                    {!formData.regionId
+                      ? 'Selecciona una región primero'
+                      : loadingCommunes
+                        ? 'Cargando comunas...'
+                        : communes.length === 0
+                          ? 'No hay comunas disponibles'
+                          : 'Selecciona una comuna'}
+                  </option>
+                  {communes.map((commune) => (
+                    <option key={commune.id} value={commune.id}>
+                      {commune.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="profile-form-group">
                 <label htmlFor="address">{t('profile.direccionEnvio')}</label>
                 <input
                   id="address"
@@ -579,27 +862,6 @@ const Profile = () => {
                   onChange={handleProfileInputChange}
                   placeholder="Calle y número"
                 />
-              </div>
-
-              <div className="profile-form-group">
-                <label htmlFor="city">{t('profile.region')}</label>
-                <select
-                  id="city"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleProfileInputChange}
-                  disabled={loadingRegions}
-                  required
-                >
-                  <option value="">
-                    {loadingRegions ? 'Cargando regiones...' : 'Selecciona una región'}
-                  </option>
-                  {regions.map((region) => (
-                    <option key={region.id} value={region.name}>
-                      {region.name}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <div className="profile-form-actions">
@@ -613,7 +875,7 @@ const Profile = () => {
                 <button
                   type="submit"
                   className="profile-primary-btn"
-                  disabled={savingProfile || loadingRegions}
+                  disabled={savingProfile || loadingRegions || loadingCommunes}
                 >
                   {savingProfile ? t('profile.actualizando') : t('profile.guardarCambios')}
                 </button>
@@ -656,9 +918,88 @@ const Profile = () => {
                 return (
                   <div key={order.id} className="order-item">
                     <div className="order-header">
-                      <div>
+                      <div className="order-header-left">
                         <h3>{t('profile.orden')} #{order.id.slice(0, 8).toUpperCase()}</h3>
                         <p>{t('profile.fecha')}: {formatDate(order.created_at)}</p>
+                        <div className="order-shipping-info">
+                          <p className="shipping-address">{formatOrderShippingAddress(order)}</p>
+                          {isOrderShippingEditable(order.status) && editingOrderId !== order.id && (
+                            <button
+                              type="button"
+                              className="order-shipping-edit-btn"
+                              onClick={() => handleEditOrderShipping(order)}
+                            >
+                              {t('profile.editarDireccionEnvio')}
+                            </button>
+                          )}
+                        </div>
+                        {editingOrderId === order.id && (
+                          <div className="order-shipping-form">
+                            <input
+                              type="text"
+                              name="address"
+                              value={orderShippingForm.address}
+                              onChange={handleOrderShippingChange}
+                              placeholder="Calle y número"
+                            />
+                            <select
+                              name="regionId"
+                              value={orderShippingForm.regionId}
+                              onChange={handleOrderShippingChange}
+                              disabled={loadingRegions || savingOrderId === order.id}
+                            >
+                              <option value="">
+                                {loadingRegions ? 'Cargando regiones...' : 'Selecciona una región'}
+                              </option>
+                              {regions.map((region) => (
+                                <option key={region.id} value={region.id}>
+                                  {region.name}
+                                </option>
+                              ))}
+                            </select>
+                            <select
+                              name="communeId"
+                              value={orderShippingForm.communeId}
+                              onChange={handleOrderShippingChange}
+                              disabled={loadingRegions || !orderShippingForm.regionId || loadingOrderCommunes || savingOrderId === order.id}
+                            >
+                              <option value="">
+                                {!orderShippingForm.regionId
+                                  ? 'Selecciona una región primero'
+                                  : loadingOrderCommunes
+                                    ? 'Cargando comunas...'
+                                    : orderCommunes.length === 0
+                                      ? 'No hay comunas disponibles'
+                                      : 'Selecciona una comuna'}
+                              </option>
+                              {orderCommunes.map((commune) => (
+                                <option key={commune.id} value={commune.id}>
+                                  {commune.name}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="order-shipping-actions">
+                              <button
+                                type="button"
+                                className="order-shipping-save-btn"
+                                onClick={() => handleSaveOrderShipping(order.id)}
+                                disabled={savingOrderId === order.id || loadingRegions || loadingOrderCommunes}
+                              >
+                                {savingOrderId === order.id
+                                  ? t('profile.actualizandoDireccion')
+                                  : t('profile.guardarDireccionEnvio')}
+                              </button>
+                              <button
+                                type="button"
+                                className="order-shipping-cancel-btn"
+                                onClick={handleCancelOrderShippingEdit}
+                                disabled={savingOrderId === order.id}
+                              >
+                                {t('profile.cancelar')}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="order-meta">
                         <span>
@@ -670,76 +1011,6 @@ const Profile = () => {
                           <strong>{formatCLP(order.total)}</strong>
                         </span>
                       </div>
-                    </div>
-                    <div className="order-shipping">
-                      <div className="order-shipping-header">
-                        <h4>{t('profile.direccionEnvio')}</h4>
-                        {isOrderShippingEditable(order.status) && editingOrderId !== order.id && (
-                          <button
-                            type="button"
-                            className="order-shipping-edit-btn"
-                            onClick={() => handleEditOrderShipping(order)}
-                          >
-                            {t('profile.editarDireccionEnvio')}
-                          </button>
-                        )}
-                      </div>
-
-                      {editingOrderId === order.id ? (
-                        <div className="order-shipping-form">
-                          <input
-                            type="text"
-                            name="address"
-                            value={orderShippingForm.address}
-                            onChange={handleOrderShippingChange}
-                            placeholder="Calle y número"
-                          />
-                          <select
-                            name="city"
-                            value={orderShippingForm.city}
-                            onChange={handleOrderShippingChange}
-                            disabled={loadingRegions || savingOrderId === order.id}
-                          >
-                            <option value="">
-                              {loadingRegions ? 'Cargando regiones...' : 'Selecciona una región'}
-                            </option>
-                            {regions.map((region) => (
-                              <option key={region.id} value={region.name}>
-                                {region.name}
-                              </option>
-                            ))}
-                          </select>
-                          <div className="order-shipping-actions">
-                            <button
-                              type="button"
-                              className="order-shipping-save-btn"
-                              onClick={() => handleSaveOrderShipping(order.id)}
-                              disabled={savingOrderId === order.id || loadingRegions}
-                            >
-                              {savingOrderId === order.id
-                                ? t('profile.actualizandoDireccion')
-                                : t('profile.guardarDireccionEnvio')}
-                            </button>
-                            <button
-                              type="button"
-                              className="order-shipping-cancel-btn"
-                              onClick={handleCancelOrderShippingEdit}
-                              disabled={savingOrderId === order.id}
-                            >
-                              {t('profile.cancelar')}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <>
-                          <p>{formatOrderShippingAddress(order)}</p>
-                          {!isOrderShippingEditable(order.status) && (
-                            <span className="order-shipping-locked">
-                              {t('profile.noEditarDireccionEnviada')}
-                            </span>
-                          )}
-                        </>
-                      )}
                     </div>
                     {(order.tracking_number || order.shipping_company) && (
                       <div className="order-tracking">
@@ -776,15 +1047,56 @@ const Profile = () => {
                     )}
                     <div className="order-items">
                       <h4>{t('profile.items')}</h4>
-                      <ul>
-                        {(order.items || []).map((item, index) => (
-                          <li key={`${order.id}-${index}`}>
-                            <span>{item.name}</span>
-                            <span>{t('profile.cantidad')}: {item.quantity}</span>
-                            <span>{t('profile.precio')}: {formatCLP(item.price)}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="items-grid">
+                        {(order.items || []).map((item, index) => {
+                          const imageUrl = item.image || item.image_url || item.photo || null;
+                          return (
+                            <div key={`${order.id}-${index}`} className="item-card">
+                              <div className="item-image-container">
+                                {imageUrl ? (
+                                  <img
+                                    src={imageUrl}
+                                    alt={item.name}
+                                    className="item-image"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      if (e.target.nextElementSibling?.style.display === 'flex') {
+                                        e.target.nextElementSibling.style.display = 'flex';
+                                      }
+                                    }}
+                                  />
+                                ) : null}
+                                <div
+                                  className="item-image-placeholder"
+                                  style={{ display: imageUrl ? 'none' : 'flex' }}
+                                >
+                                  <span>Imagen no disponible</span>
+                                </div>
+                              </div>
+                              <div className="item-details">
+                                <h5 className="item-name">{item.name}</h5>
+                                {item.description && (
+                                  <p className="item-description">{item.description}</p>
+                                )}
+                                <div className="item-meta">
+                                  <div className="item-quantity">
+                                    <span className="label">Cantidad:</span>
+                                    <span className="value">{item.quantity}</span>
+                                  </div>
+                                  <div className="item-unit-price">
+                                    <span className="label">Precio unit:</span>
+                                    <span className="value">{formatCLP(item.price)}</span>
+                                  </div>
+                                </div>
+                                <div className="item-subtotal">
+                                  <span className="label">Subtotal:</span>
+                                  <span className="value">{formatCLP(item.price * item.quantity)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 );

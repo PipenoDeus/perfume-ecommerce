@@ -65,6 +65,10 @@ export const updateOrderStatus = async (orderId, status, transactionId = null) =
       updated_at: new Date().toISOString(),
     };
 
+    if (transactionId) {
+      updateData.transaction_id = transactionId;
+    }
+
     if (status === 'paid') {
       updateData.payment_status = 'paid';
       updateData.paid_at = new Date().toISOString();
@@ -83,67 +87,6 @@ export const updateOrderStatus = async (orderId, status, transactionId = null) =
     return data;
   } catch (err) {
     throw new Error(`Error updating order: ${err.message}`);
-  }
-};
-
-export const saveWebpaySession = async (orderId, { buyOrder, sessionId, token }) => {
-  try {
-    const { data, error } = await supabase
-      .from('orders')
-      .update({
-        payment_provider: 'webpay',
-        webpay_buy_order: buyOrder,
-        webpay_session_id: sessionId,
-        webpay_token: token,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', orderId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  } catch (err) {
-    throw new Error(`Error saving Webpay session: ${err.message}`);
-  }
-};
-
-export const getOrderByWebpayToken = async (token) => {
-  try {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('webpay_token', token)
-      .maybeSingle();
-
-    if (error) throw error;
-    return data;
-  } catch (err) {
-    throw new Error(`Error fetching order by Webpay token: ${err.message}`);
-  }
-};
-
-export const saveWebpayResult = async (orderId, token, result) => {
-  try {
-    const { data, error } = await supabase
-      .from('orders')
-      .update({
-        payment_provider: 'webpay',
-        webpay_token: token,
-        webpay_buy_order: result?.buy_order || null,
-        webpay_session_id: result?.session_id || null,
-        webpay_authorization_code: result?.authorization_code || null,
-        webpay_response: result || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', orderId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  } catch (err) {
-    throw new Error(`Error saving Webpay result: ${err.message}`);
   }
 };
 

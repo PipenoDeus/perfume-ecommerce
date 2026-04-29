@@ -84,7 +84,7 @@ const Navbar = ({ cartCount }) => {
     <nav className="navbar">
       <div className="navbar-container">
         <Link to="/" className="navbar-logo">
-          QamarPerfumes
+          Bego Qamar
         </Link>
         <div className="nav-search" ref={searchRef}>
           <input

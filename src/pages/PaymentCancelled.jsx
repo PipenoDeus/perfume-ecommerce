@@ -5,7 +5,7 @@ import './PaymentSuccess.css';
 const PaymentCancelled = () => {
   const [searchParams] = useSearchParams();
 
-  const provider = searchParams.get('provider') || 'webpay';
+  const provider = searchParams.get('provider') || 'flow';
   const tbkOrder = searchParams.get('TBK_ORDEN_COMPRA');
   const tbkSession = searchParams.get('TBK_ID_SESION');
 

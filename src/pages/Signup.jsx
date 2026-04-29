@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import './Auth.css';
 
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
+
 const Signup = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -10,28 +12,32 @@ const Signup = () => {
     email: '',
     phone: '',
     address: '',
-    city: '',
+    regionId: '',
+    communeId: '',
     password: '',
     confirmPassword: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [regions, setRegions] = useState([]);
+  const [communes, setCommunes] = useState([]);
   const [loadingRegions, setLoadingRegions] = useState(true);
+  const [loadingCommunes, setLoadingCommunes] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
 
     const loadRegions = async () => {
       try {
-        const { data, error } = await supabase
-          .from('regions')
-          .select('id, code, name')
-          .eq('active', true)
-          .order('sort_order', { ascending: true })
-          .order('name', { ascending: true });
+        const response = await fetch(`${API_BASE_URL}/api/regions`, {
+          credentials: 'include',
+        });
 
-        if (error) throw error;
+        if (!response.ok) {
+          throw new Error(`Error loading regions: ${response.status}`);
+        }
+
+        const data = await response.json();
 
         if (isMounted) {
           setRegions(data || []);
@@ -55,6 +61,51 @@ const Signup = () => {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCommunes = async () => {
+      if (!formData.regionId) {
+        setCommunes([]);
+        return;
+      }
+
+      setLoadingCommunes(true);
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/regions/${encodeURIComponent(formData.regionId)}/communes`,
+          { credentials: 'include' }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Error loading communes: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (isMounted) {
+          setCommunes(data || []);
+        }
+      } catch (err) {
+        console.error('[Signup] Error loading communes:', err);
+        if (isMounted) {
+          setCommunes([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingCommunes(false);
+        }
+      }
+    };
+
+    loadCommunes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [formData.regionId]);
+
   const formatPhoneNumber = (value) => {
     const digits = value.replace(/\D/g, '');
     const localDigits = `9${digits.replace(/^9?/, '').slice(0, 8)}`.slice(0, digits.length > 0 ? 9 : 0);
@@ -68,6 +119,16 @@ const Signup = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === 'regionId') {
+      setFormData((prev) => ({
+        ...prev,
+        regionId: value,
+        communeId: '',
+      }));
+      return;
+    }
+
     const nextValue = name === 'phone' ? formatPhoneNumber(value) : value;
 
     setFormData(prev => ({
@@ -82,7 +143,7 @@ const Signup = () => {
     setLoading(true);
 
     try {
-      const { name, email, phone, address, city, password, confirmPassword } = formData;
+      const { name, email, phone, address, regionId, communeId, password, confirmPassword } = formData;
 
       // Validaciones
       if (!name || !email || !password || !confirmPassword) {
@@ -105,9 +166,21 @@ const Signup = () => {
         throw new Error('Espera a que carguen las regiones antes de registrarte');
       }
 
-      if (!city || !regions.some((region) => region.name === city)) {
+      if (!regionId || !regions.some((region) => region.id === Number(regionId))) {
         throw new Error('Por favor selecciona una región válida');
       }
+
+      if (loadingCommunes) {
+        throw new Error('Espera a que carguen las comunas antes de registrarte');
+      }
+
+      const selectedCommune = communes.find((commune) => commune.id === Number(communeId));
+      if (!selectedCommune) {
+        throw new Error('Por favor selecciona una comuna válida');
+      }
+
+      const selectedRegion = regions.find((region) => region.id === Number(regionId));
+      const city = selectedCommune.name;
 
       const phoneDigits = phone.replace(/\D/g, '');
       const phoneValue = phoneDigits ? `+56 ${phone.trim()}` : null;
@@ -126,6 +199,7 @@ const Signup = () => {
             phone: phoneValue,
             address: address || null,
             city: city || null,
+            region: selectedRegion?.name || null,
           }
         }
       }).then(({ data, error }) => {
@@ -152,7 +226,7 @@ const Signup = () => {
       <div className="auth-container">
         <div className="auth-card">
           <h1 className="auth-title">Crear Cuenta</h1>
-          <p className="auth-subtitle">Únete a QamarPerfumes</p>
+          <p className="auth-subtitle">Únete a Bego Qamar</p>
 
           {error && <div className="alert alert-error">{error}</div>}
 
@@ -202,6 +276,54 @@ const Signup = () => {
             </div>
 
             <div className="form-group">
+              <label htmlFor="regionId">Región</label>
+              <select
+                id="regionId"
+                name="regionId"
+                value={formData.regionId}
+                onChange={handleChange}
+                disabled={loadingRegions}
+                required
+              >
+                <option value="">
+                  {loadingRegions ? 'Cargando regiones...' : 'Selecciona una región'}
+                </option>
+                {regions.map((region) => (
+                  <option key={region.id} value={region.id}>
+                    {region.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="communeId">Comuna</label>
+              <select
+                id="communeId"
+                name="communeId"
+                value={formData.communeId}
+                onChange={handleChange}
+                disabled={loadingRegions || !formData.regionId || loadingCommunes}
+                required
+              >
+                <option value="">
+                  {!formData.regionId
+                    ? 'Selecciona una región primero'
+                    : loadingCommunes
+                      ? 'Cargando comunas...'
+                      : communes.length === 0
+                        ? 'No hay comunas disponibles'
+                        : 'Selecciona una comuna'}
+                </option>
+                {communes.map((commune) => (
+                  <option key={commune.id} value={commune.id}>
+                    {commune.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group">
               <label htmlFor="address">Dirección</label>
               <input
                 id="address"
@@ -211,27 +333,6 @@ const Signup = () => {
                 onChange={handleChange}
                 placeholder="Calle Principal 123"
               />
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="city">Región</label>
-              <select
-                id="city"
-                name="city"
-                value={formData.city}
-                onChange={handleChange}
-                disabled={loadingRegions}
-                required
-              >
-                <option value="">
-                  {loadingRegions ? 'Cargando regiones...' : 'Selecciona una región'}
-                </option>
-                {regions.map((region) => (
-                  <option key={region.id} value={region.name}>
-                    {region.name}
-                  </option>
-                ))}
-              </select>
             </div>
 
             <div className="form-group">
@@ -262,10 +363,16 @@ const Signup = () => {
 
             <button
               type="submit"
-              disabled={loading || loadingRegions || regions.length === 0}
+              disabled={loading || loadingRegions || loadingCommunes || regions.length === 0}
               className="btn btn-login"
             >
-              {loading ? 'Registrando...' : loadingRegions ? 'Cargando regiones...' : 'Crear Cuenta'}
+              {loading
+                ? 'Registrando...'
+                : loadingRegions
+                  ? 'Cargando regiones...'
+                  : loadingCommunes
+                    ? 'Cargando comunas...'
+                    : 'Crear Cuenta'}
             </button>
           </form>
 
@@ -281,7 +388,7 @@ const Signup = () => {
 
         <div className="auth-banner">
           <div className="banner-content">
-            <h2>QamarPerfumes</h2>
+            <h2>Bego Qamar</h2>
             <p>Descubre nuestros aromas exclusivos</p>
           </div>
         </div>

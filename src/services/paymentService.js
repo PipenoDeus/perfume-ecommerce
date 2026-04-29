@@ -195,49 +195,23 @@ export const paymentService = {
     return response.json();
   },
 
-  // Create Webpay transaction
-  async createWebpayTransaction(orderId) {
-    const { data: { session } } = await supabase.auth.getSession();
+  // Confirm Flow payment after return_url
+  async confirmFlowPayment(token, orderId) {
+    const authToken = await getAuthToken();
+    if (!authToken) throw new Error('Not authenticated');
 
-    const headers = {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-    };
-    if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
-
-    const response = await fetchWithCSRFRetry(`${API_BASE_URL}/api/payments/webpay/create`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ orderId }),
-    });
-
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      if (response.status === 429) {
-        throw new Error(data?.error || 'Demasiados intentos de pago. Espera un momento y vuelve a intentarlo.');
-      }
-      throw new Error(data?.error || data?.message || `Error ${response.status}`);
-    }
-    return data;
-  },
-
-  // Commit Webpay transaction
-  async commitWebpayTransaction(token_ws) {
-    const token = await getAuthToken();
-    if (!token) throw new Error('Not authenticated');
-
-    const response = await fetchWithCSRFRetry(`${API_BASE_URL}/api/payments/webpay/commit`, {
+    const response = await fetchWithCSRFRetry(`${API_BASE_URL}/api/payments/flow/confirm`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${authToken}`,
       },
-      body: JSON.stringify({ token: token_ws })
+      body: JSON.stringify({ token, orderId }),
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to commit Webpay transaction');
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || 'Failed to confirm Flow transaction');
     }
 
     return response.json();

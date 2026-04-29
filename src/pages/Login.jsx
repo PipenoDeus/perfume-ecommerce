@@ -43,7 +43,13 @@ const Login = () => {
         fetchUserRole(currentUser.id);
       }
     } catch (err) {
-      setError(err.message || 'Error al iniciar sesión');
+      const rawMessage = String(err?.message || '').toLowerCase();
+
+      if (rawMessage.includes('invalid login credentials')) {
+        setError('Email/contraseña incorrecta');
+      } else {
+        setError(err.message || 'Error al iniciar sesión');
+      }
     } finally {
       setLoading(false);
     }
@@ -54,7 +60,7 @@ const Login = () => {
       <div className="auth-container">
         <div className="auth-card">
           <h1 className="auth-title">Iniciar Sesión</h1>
-          <p className="auth-subtitle">Bienvenido a QamarPerfumes</p>
+          <p className="auth-subtitle">Bienvenido a Bego Qamar</p>
 
           {error && <div className="alert alert-error">{error}</div>}
 
@@ -94,6 +100,14 @@ const Login = () => {
 
           <div className="auth-footer">
             <p>
+              <Link to="/forgot-password" className="auth-link">
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </p>
+          </div>
+
+          <div className="auth-footer">
+            <p>
               ¿No tienes cuenta?{' '}
               <Link to="/signup" className="auth-link">
                 Regístrate aquí
@@ -104,7 +118,7 @@ const Login = () => {
 
         <div className="auth-banner">
           <div className="banner-content">
-            <h2>QamarPerfumes</h2>
+            <h2>Bego Qamar</h2>
             <p>Los mejores perfumes en un solo lugar</p>
           </div>
         </div>

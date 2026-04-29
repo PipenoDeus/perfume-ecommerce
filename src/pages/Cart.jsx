@@ -12,28 +12,147 @@ const Cart = () => {
   const { t } = useContext(LanguageContext);
   const { user } = useContext(AuthContext);
   const { cart, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useContext(CartContext);
-  const [shippingAddress, setShippingAddress] = useState({ address: '', city: '' });
-  const [paymentMethod, setPaymentMethod] = useState('paypal');
+  const [shippingAddress, setShippingAddress] = useState({
+    address: '',
+    regionId: '',
+    communeId: '',
+    city: '',
+    region: '',
+  });
+  const [paymentMethod, setPaymentMethod] = useState('flow');
   const [regions, setRegions] = useState([]);
+  const [communes, setCommunes] = useState([]);
+  const [loadingRegions, setLoadingRegions] = useState(true);
+  const [loadingCommunes, setLoadingCommunes] = useState(false);
 
   useEffect(() => {
     if (!user) {
-      setShippingAddress({ address: '', city: '' });
+      setShippingAddress({
+        address: '',
+        regionId: '',
+        communeId: '',
+        city: '',
+        region: '',
+      });
       return;
     }
 
     setShippingAddress((prev) => ({
       address: prev.address || user?.user_metadata?.address || '',
       city: prev.city || user?.user_metadata?.city || '',
+      region: prev.region || user?.user_metadata?.region || '',
+      regionId: prev.regionId || '',
+      communeId: prev.communeId || '',
     }));
-  }, [user, user?.user_metadata?.address, user?.user_metadata?.city]);
+  }, [user, user?.user_metadata?.address, user?.user_metadata?.city, user?.user_metadata?.region]);
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/regions`)
-      .then((res) => res.json())
-      .then((data) => setRegions(Array.isArray(data) ? data : []))
-      .catch(() => setRegions([]));
+    let isMounted = true;
+
+    const loadRegions = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/regions`, {
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          throw new Error(`Error loading regions: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (isMounted) {
+          setRegions(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        if (isMounted) {
+          setRegions([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingRegions(false);
+        }
+      }
+    };
+
+    loadRegions();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  useEffect(() => {
+    if (!regions.length || shippingAddress.regionId || !shippingAddress.region) {
+      return;
+    }
+
+    const matchedRegion = regions.find((region) => region.name === shippingAddress.region);
+    if (matchedRegion) {
+      setShippingAddress((prev) => ({
+        ...prev,
+        regionId: String(matchedRegion.id),
+      }));
+    }
+  }, [regions, shippingAddress.region, shippingAddress.regionId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadCommunes = async () => {
+      if (!shippingAddress.regionId) {
+        setCommunes([]);
+        return;
+      }
+
+      setLoadingCommunes(true);
+
+      try {
+        const response = await fetch(
+          `${API_BASE_URL}/api/regions/${encodeURIComponent(shippingAddress.regionId)}/communes`,
+          { credentials: 'include' }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Error loading communes: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (isMounted) {
+          setCommunes(Array.isArray(data) ? data : []);
+        }
+      } catch {
+        if (isMounted) {
+          setCommunes([]);
+        }
+      } finally {
+        if (isMounted) {
+          setLoadingCommunes(false);
+        }
+      }
+    };
+
+    loadCommunes();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [shippingAddress.regionId]);
+
+  useEffect(() => {
+    if (!communes.length || shippingAddress.communeId || !shippingAddress.city) {
+      return;
+    }
+
+    const matchedCommune = communes.find((commune) => commune.name === shippingAddress.city);
+    if (matchedCommune) {
+      setShippingAddress((prev) => ({
+        ...prev,
+        communeId: String(matchedCommune.id),
+      }));
+    }
+  }, [communes, shippingAddress.city, shippingAddress.communeId]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
   const [checkoutSuccess, setCheckoutSuccess] = useState('');
@@ -61,7 +180,7 @@ const Cart = () => {
       return;
     }
 
-    if (!shippingAddress.address.trim() || !shippingAddress.city.trim()) {
+    if (!shippingAddress.address.trim() || !shippingAddress.regionId || !shippingAddress.communeId) {
       setCheckoutError(t('cart.completarDatosEnvio'));
       return;
     }
@@ -72,6 +191,13 @@ const Cart = () => {
     setPaymentInfo(null);
 
     try {
+      const selectedRegion = regions.find((region) => region.id === Number(shippingAddress.regionId));
+      const selectedCommune = communes.find((commune) => commune.id === Number(shippingAddress.communeId));
+
+      if (!selectedRegion || !selectedCommune) {
+        throw new Error('Selecciona una región y comuna válidas');
+      }
+
       const items = cart.map((item) => ({
         id: item.id,
         name: item.name,
@@ -81,35 +207,26 @@ const Cart = () => {
         image_url: item.image_url,
       }));
 
-      const order = await orderService.createOrder(items, shippingAddress);
+      const nextShippingAddress = {
+        address: shippingAddress.address.trim(),
+        region: selectedRegion.name,
+        city: selectedCommune.name,
+      };
+
+      const order = await orderService.createOrder(items, nextShippingAddress);
       if (!order?.id) {
         throw new Error('Missing order ID');
       }
 
-      // ===== WEBPAY =====
-      if (paymentMethod === 'webpay') {
-        const webpaySession = await paymentService.createWebpayTransaction(order.id);
-
-        if (!webpaySession?.url || !webpaySession?.token) {
-          throw new Error('Respuesta inválida de Webpay');
-        }
-
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = webpaySession.url;
-
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'token_ws';
-        input.value = webpaySession.token;
-
-        form.appendChild(input);
-        document.body.appendChild(form);
-        clearCart();
-        setShippingAddress({ address: '', city: '' });
-        form.submit();
-        return;
-      }
+      // Limpiar carrito después de crear orden exitosamente
+      clearCart();
+      setShippingAddress({
+        address: '',
+        regionId: '',
+        communeId: '',
+        city: '',
+        region: '',
+      });
 
       // ===== PAYPAL =====
       if (paymentMethod === 'paypal') {
@@ -121,12 +238,20 @@ const Cart = () => {
         throw new Error('No se recibió URL de aprobación de PayPal');
       }
 
+      // ===== FLOW =====
+      if (paymentMethod === 'flow') {
+        const session = await paymentService.createPaymentSession(order.id, 'flow');
+        if (session?.approvalUrl) {
+          window.location.href = session.approvalUrl;
+          return;
+        }
+        throw new Error('No se recibió URL de pago de Flow');
+      }
+
       // ===== BANCO U OTROS =====
       const session = await paymentService.createPaymentSession(order.id, paymentMethod);
       setPaymentInfo(session);
       setCheckoutSuccess(t('cart.ordenCreada'));
-      clearCart();
-      setShippingAddress({ address: '', city: '' });
 
     } catch (error) {
       console.error('[Cart] handleCheckout error:', error);
@@ -219,16 +344,57 @@ const Cart = () => {
               />
             </div>
             <div className="form-group">
-              <label htmlFor="city">{t('cart.region')}</label>
+              <label htmlFor="regionId">{t('cart.region')}</label>
               <select
-                id="city"
-                value={shippingAddress.city}
-                onChange={(e) => setShippingAddress({ ...shippingAddress, city: e.target.value })}
+                id="regionId"
+                value={shippingAddress.regionId}
+                onChange={(e) => setShippingAddress((prev) => ({
+                  ...prev,
+                  regionId: e.target.value,
+                  communeId: '',
+                  city: '',
+                  region: '',
+                }))}
+                disabled={loadingRegions}
               >
-                <option value="">{t('cart.seleccionarRegion')}</option>
+                <option value="">{loadingRegions ? 'Cargando regiones...' : t('cart.seleccionarRegion')}</option>
                 {regions.map((region) => (
-                  <option key={region.id} value={region.name}>
+                  <option key={region.id} value={region.id}>
                     {region.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
+              <label htmlFor="communeId">Comuna</label>
+              <select
+                id="communeId"
+                value={shippingAddress.communeId}
+                onChange={(e) => {
+                  const selectedCommune = communes.find((commune) => commune.id === Number(e.target.value));
+                  const selectedRegion = regions.find((region) => region.id === Number(shippingAddress.regionId));
+
+                  setShippingAddress((prev) => ({
+                    ...prev,
+                    communeId: e.target.value,
+                    city: selectedCommune?.name || '',
+                    region: selectedRegion?.name || '',
+                  }));
+                }}
+                disabled={loadingRegions || !shippingAddress.regionId || loadingCommunes}
+              >
+                <option value="">
+                  {!shippingAddress.regionId
+                    ? 'Selecciona una región primero'
+                    : loadingCommunes
+                      ? 'Cargando comunas...'
+                      : communes.length === 0
+                        ? 'No hay comunas disponibles'
+                        : 'Selecciona una comuna'}
+                </option>
+                {communes.map((commune) => (
+                  <option key={commune.id} value={commune.id}>
+                    {commune.name}
                   </option>
                 ))}
               </select>
@@ -250,11 +416,11 @@ const Cart = () => {
                   <input
                     type="radio"
                     name="paymentMethod"
-                    value="webpay"
-                    checked={paymentMethod === 'webpay'}
+                    value="flow"
+                    checked={paymentMethod === 'flow'}
                     onChange={(e) => setPaymentMethod(e.target.value)}
                   />
-                  <span className="payment-option-text">{t('cart.metodoWebpay')}</span>
+                  <span className="payment-option-text">{t('cart.metodoFlow')}</span>
                 </label>
 
               </div>
