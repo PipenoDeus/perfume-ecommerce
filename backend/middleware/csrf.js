@@ -20,6 +20,13 @@ export const generateCSRFToken = (req, res, next) => {
     return next();
   }
 
+  // Do not create a new CSRF token for state-changing requests.
+  // If the cookie is missing, validation should fail instead of regenerating a token
+  // and invalidating the incoming header value.
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    return next();
+  }
+
   const token = crypto.randomBytes(32).toString('hex');
 
   res.cookie('csrfToken', token, {
