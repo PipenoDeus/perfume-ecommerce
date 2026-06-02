@@ -12,6 +12,14 @@ const parseCookies = (cookieHeader = '') => {
 };
 
 export const generateCSRFToken = (req, res, next) => {
+  const existingCookies = parseCookies(req.headers.cookie || '');
+  const existingToken = existingCookies.csrfToken;
+
+  if (existingToken) {
+    res.locals.csrfToken = existingToken;
+    return next();
+  }
+
   const token = crypto.randomBytes(32).toString('hex');
 
   res.cookie('csrfToken', token, {
