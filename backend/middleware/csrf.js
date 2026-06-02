@@ -111,6 +111,12 @@ export const validateCSRFToken = (req, res, next) => {
   }
 
   if (!token) {
+    console.log('[CSRF FULL DEBUG]', {
+      cookieToken: req.cookies?.csrfToken,
+      headerToken: req.headers['x-csrf-token'],
+      cookies: req.cookies,
+      rawCookieHeader: req.headers.cookie,
+    });
     console.warn('[CSRF] Missing token - request blocked', {
       path: req.path,
       method: req.method,
@@ -128,6 +134,12 @@ export const validateCSRFToken = (req, res, next) => {
   const validStoredToken = !cookieToken && isStoredCSRFToken(token);
 
   if (!validToken && !validStoredToken) {
+    console.log('[CSRF FULL DEBUG]', {
+      cookieToken: req.cookies?.csrfToken,
+      headerToken: req.headers['x-csrf-token'],
+      cookies: req.cookies,
+      rawCookieHeader: req.headers.cookie,
+    });
     console.warn('[CSRF] Invalid token - request blocked', {
       path: req.path,
       method: req.method,

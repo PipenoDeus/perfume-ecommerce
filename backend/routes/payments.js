@@ -27,7 +27,10 @@ const FLOW_API_BASE = flowEnv === 'production'
   : 'https://sandbox.flow.cl/api';
 
 const getFrontendBaseUrl = () => {
-  const raw = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const raw = process.env.FRONTEND_URL;
+  if (!raw) {
+    throw new Error('FRONTEND_URL environment variable is required');
+  }
   return raw.split(',')[0].trim();
 };
 
@@ -109,8 +112,22 @@ const createFlowPayment = async (order, reqUserEmail = '') => {
     throw new Error('Flow requiere un email válido en la cuenta del usuario para continuar con el pago.');
   }
 
-  const backendBaseUrl = process.env.BACKEND_URL || 'http://localhost:3000';
+  if (!process.env.BACKEND_URL) {
+    throw new Error('BACKEND_URL environment variable is required');
+  }
+  const backendBaseUrl = process.env.BACKEND_URL;
+
   const frontendBaseUrl = getFrontendBaseUrl();
+
+  const urlConfirmation = `${backendBaseUrl}/api/payments/flow/confirmation`;
+  const urlReturn = `${frontendBaseUrl}/payment-success?provider=flow&orderId=${encodeURIComponent(order.id)}`;
+
+  console.log('[FLOW DEBUG]', {
+    backendBaseUrl,
+    frontendBaseUrl,
+    urlConfirmation,
+    urlReturn,
+  });
 
   const flowPayload = {
     commerceOrder: String(order.id),
@@ -118,8 +135,8 @@ const createFlowPayment = async (order, reqUserEmail = '') => {
     currency: 'CLP',
     amount,
     email: payerEmail,
-    urlConfirmation: `${backendBaseUrl}/api/payments/flow/confirmation`,
-    urlReturn: `${backendBaseUrl}/api/payments/flow/return?provider=flow&orderId=${encodeURIComponent(order.id)}`,
+    urlConfirmation,
+    urlReturn,
   };
 
   const response = await flowRequest('/payment/create', flowPayload);
