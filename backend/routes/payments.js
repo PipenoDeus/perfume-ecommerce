@@ -120,7 +120,7 @@ const createFlowPayment = async (order, reqUserEmail = '') => {
   const frontendBaseUrl = getFrontendBaseUrl();
 
   const urlConfirmation = `${backendBaseUrl}/api/payments/flow/confirmation`;
-  const urlReturn = `${frontendBaseUrl}/payment-success?provider=flow&orderId=${encodeURIComponent(order.id)}`;
+  const urlReturn =`${backendBaseUrl}/api/payments/flow/return?orderId=${encodeURIComponent(order.id)}`;
 
   console.log('[FLOW DEBUG]', {
     backendBaseUrl,
@@ -138,7 +138,7 @@ const createFlowPayment = async (order, reqUserEmail = '') => {
     urlConfirmation,
     urlReturn,
   };
-
+  console.log('[FLOW PAYLOAD ENVIADO]', flowPayload);
   const response = await flowRequest('/payment/create', flowPayload);
 
   return {
