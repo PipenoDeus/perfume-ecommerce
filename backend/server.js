@@ -211,6 +211,15 @@ app.options('*', cors(corsOptions));
 // Apply CORS middleware to all routes
 app.use(cors(corsOptions));
 
+// Force credential headers and origin variance for every CORS response
+app.use((req, res, next) => {
+  if (req.headers.origin) {
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Vary', 'Origin');
+  }
+  next();
+});
+
 // Rate limiting - general
 app.use(generalLimiter);
 

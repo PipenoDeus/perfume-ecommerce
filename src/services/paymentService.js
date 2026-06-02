@@ -12,6 +12,7 @@ const fetchWithCSRFRetry = async (url, options = {}) => {
       method: options.method || 'GET',
       csrfTokenPresent: Boolean(csrfToken),
       credentials: 'include',
+      mode: 'cors',
       headers: {
         ...(options.headers || {}),
         ...(csrfToken ? { 'X-CSRF-Token': 'present' } : {}),
@@ -19,8 +20,9 @@ const fetchWithCSRFRetry = async (url, options = {}) => {
     });
 
     return fetch(url, {
-      credentials: 'include',
       ...options,
+      mode: 'cors',
+      credentials: 'include',
       headers: {
         ...(options.headers || {}),
         ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),

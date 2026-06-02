@@ -29,6 +29,7 @@ export async function fetchCSRFToken() {
   try {
     const response = await fetch(buildUrl(), {
       method: 'GET',
+      mode: 'cors',
       credentials: 'include',
       headers: {
         Accept: 'application/json',

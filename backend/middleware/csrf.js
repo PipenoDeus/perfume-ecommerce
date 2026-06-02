@@ -55,6 +55,7 @@ export const generateCSRFToken = (req, res, next) => {
     tokenPreview: `${token.slice(0, 8)}...`,
     secure: isProduction,
     sameSite: isProduction ? 'none' : 'lax',
+    setCookieHeader: res.getHeader('Set-Cookie'),
   });
 
   res.locals.csrfToken = token;
