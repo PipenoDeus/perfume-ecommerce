@@ -39,7 +39,12 @@ export const AuthProvider = ({ children }) => {
       const { data, error } = await Promise.race([roleQuery, timeoutPromise]);
 
       if (error) {
-        console.error('Error fetching role:', error);
+        // Treat TIMEOUT specially to avoid noisy errors when Supabase is slow.
+        if (error.code === 'TIMEOUT') {
+          console.warn('Role fetch timeout - maintaining current role');
+        } else {
+          console.error('Error fetching role:', error);
+        }
         
         // Si el usuario no existe en public.users, crear un registro por defecto
         if (error.code === 'PGRST116') {
