@@ -108,56 +108,50 @@ Ver [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) para:
 - Recomendaciones de políticas RLS
 - Example data insertion queries
 
-## Components Overview
+## Navbar
 
-### Navbar
-Navigation component showing logo, menu items, cart count, and user auth status.
+Componente de navegación que muestra el logo, los elementos del menú, la cantidad de productos en el carrito y el estado de autenticación del usuario.
 
-### ProductCard
-Displays individual perfume with image, details, price, and add-to-cart functionality.
+## ProductCard
 
-### Home
-Landing page with hero section, features showcase, and call-to-action.
+Muestra un perfume individual con su imagen, detalles, precio y funcionalidad para agregar al carrito.
 
-### Products
-Product listing page that fetches from Supabase and displays all perfumes.
+## Home
 
-### Cart
-Shopping cart page with item management, quantity updates, and order summary.
+Página principal con una sección destacada (hero), presentación de características y llamada a la acción.
 
-## Context Providers
+## Products
 
-### AuthContext
-Manages user authentication state and login status.
+Página de listado de productos que obtiene los datos desde Supabase y muestra todos los perfumes.
 
-### CartContext
-Manages shopping cart state with actions for add/remove/update items.
+## Cart
 
-## Services
+Página del carrito de compras con gestión de productos, actualización de cantidades y resumen del pedido.
 
-### supabase.js
-- `supabase` - Supabase client instance
-- `perfumeService` - Methods for perfume CRUD operations
-- `authService` - User authentication methods
-- `orderService` - Order management methods
+## Proveedores de Contexto
+## AuthContext
 
-## Future Enhancements
+Gestiona el estado de autenticación del usuario y su estado de inicio de sesión.
 
-- [ ] Product detail pages
-- [ ] Advanced search and filtering
-- [ ] User reviews and ratings
-- [ ] Payment integration (Stripe/PayPal)
-- [ ] Order history and tracking
-- [ ] Admin dashboard
-- [ ] Email notifications
-- [ ] Wishlist functionality
-- [ ] Product recommendations
-- [ ] Dark mode toggle
+## CartContext
 
-## Contributing
+Gestiona el estado del carrito de compras con acciones para agregar, eliminar y actualizar productos.
 
-Feel free to fork and submit pull requests for any improvements.
+## Servicios
+supabase.js
+supabase - Instancia del cliente de Supabase.
+perfumeService - Métodos para operaciones CRUD de perfumes.
+authService - Métodos de autenticación de usuarios.
+orderService - Métodos de gestión de pedidos.
+## Mejoras Futuras
 
-## License
+[]Reseñas y valoraciones de usuarios.
 
-This project is open source and available under the MIT License.
+[]Notificaciones por correo electrónico.
+
+[]Funcionalidad de lista de deseos.
+
+[]Recomendaciones de productos.
+
+[]Interruptor de modo oscuro.
+

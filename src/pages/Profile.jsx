@@ -5,8 +5,9 @@ import { orderService } from '../services/paymentService';
 import { supabase } from '../services/supabase';
 import './Profile.css';
 
-const ORDERS_PER_PAGE = 10;
 const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
+const ORDERS_PER_PAGE = 5;
+const ITEMS_PER_ORDER_PAGE = 1;
 
 const Profile = () => {
   const { user } = useContext(AuthContext);
@@ -15,7 +16,6 @@ const Profile = () => {
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
   const [isEditing, setIsEditing] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMessage, setProfileMessage] = useState('');
@@ -43,6 +43,8 @@ const Profile = () => {
   });
   const [orderCommunes, setOrderCommunes] = useState([]);
   const [loadingOrderCommunes, setLoadingOrderCommunes] = useState(false);
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [itemPagesByOrder, setItemPagesByOrder] = useState({});
 
   useEffect(() => {
     let isMounted = true;
@@ -509,6 +511,9 @@ const Profile = () => {
     if (normalized.includes('chilexpress') || normalized.includes('chile express')) {
       return 'Chilexpress';
     }
+    if (normalized === 'correos' || normalized.includes('correos')) {
+      return 'CorreosChile';
+    }
     if (normalized.includes('correoschile') || normalized.includes('correos chile')) {
       return 'CorreosChile';
     }
@@ -713,43 +718,294 @@ const Profile = () => {
     }
   };
 
-  const getTrackingUrl = (company, trackingNumber) => {
-    const cleanTracking = String(trackingNumber || '').trim();
+  const getTrackingUrl = (company, trackingCode) => {
+    const cleanTracking = String(trackingCode || '').trim();
     const normalizedCompany = String(company || '').trim().toLowerCase();
 
     if (!cleanTracking) return '';
+
+    if (normalizedCompany === 'correos' || normalizedCompany.includes('correos')) {
+      return 'https://www.correos.cl/seguimiento-en-linea';
+    }
 
     if (normalizedCompany.includes('starken')) {
       return `https://www.starken.cl/seguimiento?codigo=${encodeURIComponent(cleanTracking)}`;
     }
 
     if (normalizedCompany.includes('chilexpress') || normalizedCompany.includes('chile express')) {
-      return `https://www.chilexpress.cl/Views/ChilexpressCL/Resultado-busqueda.aspx?DATA=${encodeURIComponent(cleanTracking)}`;
-    }
-
-    if (normalizedCompany.includes('correoschile') || normalizedCompany.includes('correos chile')) {
-      return `https://www.correos.cl/web/guest/seguimiento-en-linea?codigos=${encodeURIComponent(cleanTracking)}`;
+      return 'https://www.chilexpress.cl/estado-envio-paquete-courier';
     }
 
     return '';
   };
 
-  const totalPages = Math.ceil(orders.length / ORDERS_PER_PAGE);
-  const paginatedOrders = orders.slice(
-    (currentPage - 1) * ORDERS_PER_PAGE,
-    currentPage * ORDERS_PER_PAGE
+  const getOrderCourier = (order) => order?.courier || order?.shipping_company || '';
+  const getOrderTrackingCode = (order) => String(order?.tracking_code || order?.tracking_number || '').trim();
+  const sortedOrders = [...orders].sort(
+    (a, b) => new Date(b?.created_at || 0) - new Date(a?.created_at || 0)
   );
+  const ordersTotalPages = Math.max(1, Math.ceil(sortedOrders.length / ORDERS_PER_PAGE));
+  const paginatedOrders = sortedOrders.slice(
+    (ordersPage - 1) * ORDERS_PER_PAGE,
+    ordersPage * ORDERS_PER_PAGE
+  );
+
+  useEffect(() => {
+    setOrdersPage(1);
+  }, [orders.length]);
+
+  useEffect(() => {
+    if (ordersPage > ordersTotalPages) {
+      setOrdersPage(ordersTotalPages);
+    }
+  }, [ordersPage, ordersTotalPages]);
+
+  const renderOrderCard = (order) => {
+    const orderCourier = getOrderCourier(order);
+    const orderTrackingCode = getOrderTrackingCode(order);
+    const trackingUrl = getTrackingUrl(orderCourier, orderTrackingCode);
+    const orderItems = Array.isArray(order.items) ? order.items : [];
+    const totalItemPages = Math.max(1, Math.ceil(orderItems.length / ITEMS_PER_ORDER_PAGE));
+    const currentItemPage = Math.min(itemPagesByOrder[order.id] || 1, totalItemPages);
+    const paginatedItems = orderItems.slice(
+      (currentItemPage - 1) * ITEMS_PER_ORDER_PAGE,
+      currentItemPage * ITEMS_PER_ORDER_PAGE
+    );
+
+    const changeItemPage = (nextPage) => {
+      setItemPagesByOrder((prev) => ({
+        ...prev,
+        [order.id]: nextPage,
+      }));
+    };
+
+    return (
+      <div key={order.id} className="order-item">
+        <div className="order-header">
+          <div className="order-header-left">
+            <h3>{t('profile.orden')} #{order.id.slice(0, 8).toUpperCase()}</h3>
+            <p>{t('profile.fecha')}: {formatDate(order.created_at)}</p>
+            <div className="order-shipping-info">
+              <p className="shipping-address">{formatOrderShippingAddress(order)}</p>
+              {isOrderShippingEditable(order.status) && editingOrderId !== order.id && (
+                <button
+                  type="button"
+                  className="order-shipping-edit-btn"
+                  onClick={() => handleEditOrderShipping(order)}
+                >
+                  {t('profile.editarDireccionEnvio')}
+                </button>
+              )}
+            </div>
+            {editingOrderId === order.id && (
+              <div className="order-shipping-form">
+                <input
+                  type="text"
+                  name="address"
+                  value={orderShippingForm.address}
+                  onChange={handleOrderShippingChange}
+                  placeholder="Calle y número"
+                />
+                <select
+                  name="regionId"
+                  value={orderShippingForm.regionId}
+                  onChange={handleOrderShippingChange}
+                  disabled={loadingRegions || savingOrderId === order.id}
+                >
+                  <option value="">
+                    {loadingRegions ? 'Cargando regiones...' : 'Selecciona una región'}
+                  </option>
+                  {regions.map((region) => (
+                    <option key={region.id} value={region.id}>
+                      {region.name}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  name="communeId"
+                  value={orderShippingForm.communeId}
+                  onChange={handleOrderShippingChange}
+                  disabled={loadingRegions || !orderShippingForm.regionId || loadingOrderCommunes || savingOrderId === order.id}
+                >
+                  <option value="">
+                    {!orderShippingForm.regionId
+                      ? 'Selecciona una región primero'
+                      : loadingOrderCommunes
+                        ? 'Cargando comunas...'
+                        : orderCommunes.length === 0
+                          ? 'No hay comunas disponibles'
+                          : 'Selecciona una comuna'}
+                  </option>
+                  {orderCommunes.map((commune) => (
+                    <option key={commune.id} value={commune.id}>
+                      {commune.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="order-shipping-actions">
+                  <button
+                    type="button"
+                    className="order-shipping-save-btn"
+                    onClick={() => handleSaveOrderShipping(order.id)}
+                    disabled={savingOrderId === order.id || loadingRegions || loadingOrderCommunes}
+                  >
+                    {savingOrderId === order.id
+                      ? t('profile.actualizandoDireccion')
+                      : t('profile.guardarDireccionEnvio')}
+                  </button>
+                  <button
+                    type="button"
+                    className="order-shipping-cancel-btn"
+                    onClick={handleCancelOrderShippingEdit}
+                    disabled={savingOrderId === order.id}
+                  >
+                    {t('profile.cancelar')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="order-meta">
+            <span>
+              {t('profile.estado')}:{' '}
+              <strong>{formatStatus(order.status)}</strong>
+            </span>
+            <span>
+              {t('profile.total')}:{' '}
+              <strong>{formatCLP(order.total)}</strong>
+            </span>
+          </div>
+        </div>
+        <div className="order-items">
+          <h4>{t('profile.items')}</h4>
+          <div className="items-grid">
+            {paginatedItems.map((item, index) => {
+              const imageUrl = item.image || item.image_url || item.photo || null;
+              return (
+                <div key={`${order.id}-${index}`} className="item-card">
+                  <div className="item-image-container">
+                    {imageUrl ? (
+                      <img
+                        src={imageUrl}
+                        alt={item.name}
+                        className="item-image"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          if (e.target.nextElementSibling?.style.display === 'flex') {
+                            e.target.nextElementSibling.style.display = 'flex';
+                          }
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className="item-image-placeholder"
+                      style={{ display: imageUrl ? 'none' : 'flex' }}
+                    >
+                      <span>Imagen no disponible</span>
+                    </div>
+                  </div>
+                  <div className="item-details">
+                    <h5 className="item-name">{item.name}</h5>
+                    {item.description && (
+                      <p className="item-description">{item.description}</p>
+                    )}
+                    <div className="item-meta">
+                      <div className="item-quantity">
+                        <span className="label">Cantidad:</span>
+                        <span className="value">{item.quantity}</span>
+                      </div>
+                      <div className="item-unit-price">
+                        <span className="label">Precio unit:</span>
+                        <span className="value">{formatCLP(item.price)}</span>
+                      </div>
+                    </div>
+                    <div className="item-subtotal">
+                      <span className="label">Subtotal:</span>
+                      <span className="value">{formatCLP(item.price * item.quantity)}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          {totalItemPages > 1 && (
+            <div className="order-items-pagination">
+              <button
+                type="button"
+                className="pagination-btn"
+                onClick={() => changeItemPage(Math.max(currentItemPage - 1, 1))}
+                disabled={currentItemPage === 1}
+                aria-label="Producto anterior"
+                title="Producto anterior"
+              >
+                ←
+              </button>
+              <span className="pagination-info">
+                Producto {currentItemPage} de {totalItemPages}
+              </span>
+              <button
+                type="button"
+                className="pagination-btn"
+                onClick={() => changeItemPage(Math.min(currentItemPage + 1, totalItemPages))}
+                disabled={currentItemPage === totalItemPages}
+                aria-label="Producto siguiente"
+                title="Producto siguiente"
+              >
+                →
+              </button>
+            </div>
+          )}
+        </div>
+        {(orderTrackingCode || orderCourier) && (
+          <div className="order-tracking">
+            {orderTrackingCode ? (
+              <div className="tracking-row">
+                <p className="tracking-number"><strong>{orderTrackingCode}</strong></p>
+                {trackingUrl && (
+                  <a
+                    href={trackingUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="tracking-link-btn"
+                  >
+                    {t('profile.verSeguimiento')}
+                  </a>
+                )}
+              </div>
+            ) : (
+              <p className="tracking-hint">{t('profile.sinTracking')}</p>
+            )}
+            {trackingUrl && orderTrackingCode && (
+              <p className="tracking-hint">{t('profile.trackingHint')}</p>
+            )}
+            {trackingUrl && !orderTrackingCode && (
+              <>
+                <a
+                  href={trackingUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="tracking-link-btn"
+                >
+                  {t('profile.verSeguimiento')}
+                </a>
+                <p className="tracking-hint">{t('profile.trackingHint')}</p>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="profile-page">
-      <div className="profile-header">
-        <h1>{t('profile.titulo')}</h1>
-      </div>
-
       <div className="profile-grid">
         <section className="profile-card profile-card-account">
           <div className="profile-card-header">
-            <h2>{t('profile.infoCuenta')}</h2>
+            <div className="profile-card-heading">
+              <h1>{t('profile.titulo')}</h1>
+              <h2>{t('profile.infoCuenta')}</h2>
+            </div>
             <button
               type="button"
               className="profile-edit-btn"
@@ -912,213 +1168,26 @@ const Profile = () => {
           )}
           {!loading && !error && orders.length > 0 && (
             <div className="orders-list">
-              {paginatedOrders.map((order) => {
-                const trackingUrl = getTrackingUrl(order.shipping_company, order.tracking_number);
+              {paginatedOrders.map(renderOrderCard)}
 
-                return (
-                  <div key={order.id} className="order-item">
-                    <div className="order-header">
-                      <div className="order-header-left">
-                        <h3>{t('profile.orden')} #{order.id.slice(0, 8).toUpperCase()}</h3>
-                        <p>{t('profile.fecha')}: {formatDate(order.created_at)}</p>
-                        <div className="order-shipping-info">
-                          <p className="shipping-address">{formatOrderShippingAddress(order)}</p>
-                          {isOrderShippingEditable(order.status) && editingOrderId !== order.id && (
-                            <button
-                              type="button"
-                              className="order-shipping-edit-btn"
-                              onClick={() => handleEditOrderShipping(order)}
-                            >
-                              {t('profile.editarDireccionEnvio')}
-                            </button>
-                          )}
-                        </div>
-                        {editingOrderId === order.id && (
-                          <div className="order-shipping-form">
-                            <input
-                              type="text"
-                              name="address"
-                              value={orderShippingForm.address}
-                              onChange={handleOrderShippingChange}
-                              placeholder="Calle y número"
-                            />
-                            <select
-                              name="regionId"
-                              value={orderShippingForm.regionId}
-                              onChange={handleOrderShippingChange}
-                              disabled={loadingRegions || savingOrderId === order.id}
-                            >
-                              <option value="">
-                                {loadingRegions ? 'Cargando regiones...' : 'Selecciona una región'}
-                              </option>
-                              {regions.map((region) => (
-                                <option key={region.id} value={region.id}>
-                                  {region.name}
-                                </option>
-                              ))}
-                            </select>
-                            <select
-                              name="communeId"
-                              value={orderShippingForm.communeId}
-                              onChange={handleOrderShippingChange}
-                              disabled={loadingRegions || !orderShippingForm.regionId || loadingOrderCommunes || savingOrderId === order.id}
-                            >
-                              <option value="">
-                                {!orderShippingForm.regionId
-                                  ? 'Selecciona una región primero'
-                                  : loadingOrderCommunes
-                                    ? 'Cargando comunas...'
-                                    : orderCommunes.length === 0
-                                      ? 'No hay comunas disponibles'
-                                      : 'Selecciona una comuna'}
-                              </option>
-                              {orderCommunes.map((commune) => (
-                                <option key={commune.id} value={commune.id}>
-                                  {commune.name}
-                                </option>
-                              ))}
-                            </select>
-                            <div className="order-shipping-actions">
-                              <button
-                                type="button"
-                                className="order-shipping-save-btn"
-                                onClick={() => handleSaveOrderShipping(order.id)}
-                                disabled={savingOrderId === order.id || loadingRegions || loadingOrderCommunes}
-                              >
-                                {savingOrderId === order.id
-                                  ? t('profile.actualizandoDireccion')
-                                  : t('profile.guardarDireccionEnvio')}
-                              </button>
-                              <button
-                                type="button"
-                                className="order-shipping-cancel-btn"
-                                onClick={handleCancelOrderShippingEdit}
-                                disabled={savingOrderId === order.id}
-                              >
-                                {t('profile.cancelar')}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      <div className="order-meta">
-                        <span>
-                          {t('profile.estado')}:{' '}
-                          <strong>{formatStatus(order.status)}</strong>
-                        </span>
-                        <span>
-                          {t('profile.total')}:{' '}
-                          <strong>{formatCLP(order.total)}</strong>
-                        </span>
-                      </div>
-                    </div>
-                    {(order.tracking_number || order.shipping_company) && (
-                      <div className="order-tracking">
-                        <h4>{t('profile.tracking')}</h4>
-                        <div className="tracking-details">
-                          <div className="tracking-detail">
-                            <span>{t('profile.estado')}</span>
-                            <strong>{formatStatus(order.status)}</strong>
-                          </div>
-                          <div className="tracking-detail">
-                            <span>{t('profile.empresaEnvio')}</span>
-                            <strong>{formatShippingCompany(order.shipping_company)}</strong>
-                          </div>
-                        </div>
-                        {order.tracking_number ? (
-                          <p className="tracking-number"><strong>{order.tracking_number}</strong></p>
-                        ) : (
-                          <p className="tracking-hint">{t('profile.sinTracking')}</p>
-                        )}
-                        {trackingUrl && (
-                          <>
-                            <a
-                              href={trackingUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="tracking-link-btn"
-                            >
-                              {t('profile.verSeguimiento')}
-                            </a>
-                            <p className="tracking-hint">{t('profile.trackingHint')}</p>
-                          </>
-                        )}
-                      </div>
-                    )}
-                    <div className="order-items">
-                      <h4>{t('profile.items')}</h4>
-                      <div className="items-grid">
-                        {(order.items || []).map((item, index) => {
-                          const imageUrl = item.image || item.image_url || item.photo || null;
-                          return (
-                            <div key={`${order.id}-${index}`} className="item-card">
-                              <div className="item-image-container">
-                                {imageUrl ? (
-                                  <img
-                                    src={imageUrl}
-                                    alt={item.name}
-                                    className="item-image"
-                                    onError={(e) => {
-                                      e.target.style.display = 'none';
-                                      if (e.target.nextElementSibling?.style.display === 'flex') {
-                                        e.target.nextElementSibling.style.display = 'flex';
-                                      }
-                                    }}
-                                  />
-                                ) : null}
-                                <div
-                                  className="item-image-placeholder"
-                                  style={{ display: imageUrl ? 'none' : 'flex' }}
-                                >
-                                  <span>Imagen no disponible</span>
-                                </div>
-                              </div>
-                              <div className="item-details">
-                                <h5 className="item-name">{item.name}</h5>
-                                {item.description && (
-                                  <p className="item-description">{item.description}</p>
-                                )}
-                                <div className="item-meta">
-                                  <div className="item-quantity">
-                                    <span className="label">Cantidad:</span>
-                                    <span className="value">{item.quantity}</span>
-                                  </div>
-                                  <div className="item-unit-price">
-                                    <span className="label">Precio unit:</span>
-                                    <span className="value">{formatCLP(item.price)}</span>
-                                  </div>
-                                </div>
-                                <div className="item-subtotal">
-                                  <span className="label">Subtotal:</span>
-                                  <span className="value">{formatCLP(item.price * item.quantity)}</span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              {totalPages > 1 && (
+              {ordersTotalPages > 1 && (
                 <div className="orders-pagination">
                   <button
                     type="button"
                     className="pagination-btn"
-                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
+                    onClick={() => setOrdersPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={ordersPage === 1}
                   >
                     Anterior
                   </button>
                   <span className="pagination-info">
-                    Página {currentPage} de {totalPages}
+                    Página {ordersPage} de {ordersTotalPages}
                   </span>
                   <button
                     type="button"
                     className="pagination-btn"
-                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
+                    onClick={() => setOrdersPage((prev) => Math.min(prev + 1, ordersTotalPages))}
+                    disabled={ordersPage === ordersTotalPages}
                   >
                     Siguiente
                   </button>

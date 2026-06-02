@@ -7,6 +7,14 @@ import { LanguageProvider } from './context/LanguageContext'
 import './index.css'
 import App from './App.jsx'
 
+if (import.meta.env.PROD) {
+  const noop = () => {}
+  console.log = noop
+  console.info = noop
+  console.debug = noop
+  console.warn = noop
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>

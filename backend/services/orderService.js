@@ -90,18 +90,21 @@ export const updateOrderStatus = async (orderId, status, transactionId = null) =
   }
 };
 
-// Update order tracking number
-export const updateOrderTracking = async (orderId, trackingNumber, status = 'shipped') => {
+// Update order tracking (admin, service-role — bypasses RLS)
+export const updateOrderTracking = async (orderId, { trackingCode, courier, status }) => {
   try {
-    const updateData = {
-      tracking_number: trackingNumber,
+    const payload = {
+      tracking_code: trackingCode,
+      courier: courier,
+      tracking_number: trackingCode,
+      shipping_company: courier === 'correos' ? 'correoschile' : courier,
       status: status,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
 
     const { data, error } = await supabase
       .from('orders')
-      .update(updateData)
+      .update(payload)
       .eq('id', orderId)
       .select()
       .single();

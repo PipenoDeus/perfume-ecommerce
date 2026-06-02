@@ -52,9 +52,6 @@ const Home = () => {
         <div className="hero-content">
           <h1>{t('home.titulo')}</h1>
           <p>{t('home.subtitulo')}</p>
-          <Link to="/products" className="cta-button">
-            {t('home.botonComprar')}
-          </Link>
         </div>
       </section>
 
@@ -64,9 +61,6 @@ const Home = () => {
             <h2>{t('home.destacadosTitulo')}</h2>
             <p>{t('home.destacadosSubtitulo')}</p>
           </div>
-          <Link to="/products" className="home-products-link">
-            {t('home.verMas')}
-          </Link>
         </div>
         {loadingPerfumes ? (
           <div className="home-products-state">{t('home.cargandoProductos')}</div>
@@ -79,6 +73,11 @@ const Home = () => {
             ))}
           </div>
         )}
+        <div className="home-products-footer">
+          <Link to="/products" className="home-store-btn">
+            Ver tienda
+          </Link>
+        </div>
       </section>
 
     </div>

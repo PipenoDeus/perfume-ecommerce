@@ -1,11 +1,13 @@
 import express from 'express';
 import { authenticateUser } from '../middleware/auth.js';
+import { supabase } from '../server.js';
 import { 
   createOrder, 
   getOrder, 
   getUserOrders, 
   updateOrderStatus,
   updateOrderShippingAddress,
+  updateOrderTracking,
 } from '../services/orderService.js';
 
 const router = express.Router();
@@ -103,6 +105,63 @@ router.get('/:orderId', authenticateUser, async (req, res) => {
     if (order.user_id !== req.user.id) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
+
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Admin: update order tracking
+router.put('/:orderId/tracking', authenticateUser, async (req, res) => {
+  try {
+    const normalizeRole = (value) => String(value || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    const toEffectiveRole = (value) => {
+      const normalized = normalizeRole(value);
+      return normalized === 'dueno' ? 'admin' : normalized;
+    };
+
+    const tokenRole = toEffectiveRole(req.user?.role);
+
+    // Prefer DB role because JWT user_metadata may be stale or absent.
+    const { data: dbUser, error: dbUserError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', req.user.id)
+      .maybeSingle();
+
+    if (dbUserError) {
+      return res.status(500).json({ error: `Error validando rol: ${dbUserError.message}` });
+    }
+
+    const dbRole = toEffectiveRole(dbUser?.role);
+    const effectiveRole = dbRole || tokenRole;
+
+    if (effectiveRole !== 'admin') {
+      return res.status(403).json({ error: 'No autorizado' });
+    }
+
+    const { trackingCode, courier, status } = req.body;
+    if (!trackingCode || !trackingCode.trim()) {
+      return res.status(400).json({ error: 'El código de seguimiento es requerido' });
+    }
+    if (!courier) {
+      return res.status(400).json({ error: 'La empresa de envío es requerida' });
+    }
+
+    const validStatuses = ['paid', 'shipped', 'delivered'];
+    const finalStatus = validStatuses.includes(status) ? status : 'shipped';
+
+    const order = await updateOrderTracking(req.params.orderId, {
+      trackingCode: trackingCode.trim().toUpperCase(),
+      courier,
+      status: finalStatus,
+    });
 
     res.json(order);
   } catch (error) {

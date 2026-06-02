@@ -5,6 +5,16 @@ import './ProtectedAdminRoute.css';
 
 const ProtectedAdminRoute = ({ children }) => {
   const { user, userRole, loading } = useContext(AuthContext);
+  const normalizeRole = (value) => {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    return normalized === 'dueno' ? 'admin' : normalized;
+  };
+  const effectiveRole = normalizeRole(userRole);
 
   console.log('ProtectedAdminRoute - user:', user?.email, 'role:', userRole, 'loading:', loading);
 
@@ -35,14 +45,14 @@ const ProtectedAdminRoute = ({ children }) => {
     );
   }
 
-  // Si el rol no es admin ni dueño, mostrar acceso denegado
-  if (userRole !== 'admin' && userRole !== 'dueño') {
+  // Modelo de roles: solo cliente/admin
+  if (effectiveRole !== 'admin') {
     return (
       <div className="protected-route-container">
         <div className="protected-route-message access-denied">
           <h2>⛔ Acceso Denegado</h2>
           <p>No tienes permisos para acceder a esta sección.</p>
-          <p>Solo administradores y propietarios pueden acceder al panel de administración.</p>
+          <p>Solo administradores pueden acceder al panel de administración.</p>
           <a href="/" className="btn btn-primary">Volver al Inicio</a>
         </div>
       </div>

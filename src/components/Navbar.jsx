@@ -138,20 +138,6 @@ const Navbar = ({ cartCount }) => {
                 </Link>
               </li>
             )}
-          {userRole === 'dueño' && (
-            <>
-              <li className="nav-item">
-                <Link to="/admin" className="nav-link nav-admin">
-                  Productos
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link to="/admin-users" className="nav-link nav-admin">
-                  Administradores
-                </Link>
-              </li>
-            </>
-          )}
           {user ? (
             <li className="nav-item user-menu-container">
               <button

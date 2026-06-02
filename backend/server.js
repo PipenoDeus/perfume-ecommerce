@@ -16,6 +16,16 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
+const isProduction = process.env.NODE_ENV === 'production';
+const enableLogs = process.env.ENABLE_LOGS === 'true' || !isProduction;
+
+if (!enableLogs) {
+  console.log = () => {};
+  console.info = () => {};
+  console.debug = () => {};
+  console.warn = () => {};
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -49,12 +59,18 @@ const normalizePath = (requestPath) => {
   return requestPath.replace(/\/+$/, '');
 };
 
+const rawFrontendOrigins = process.env.FRONTEND_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:5174';
 const allowedOrigins = new Set(
-  (process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:5174')
+  rawFrontendOrigins
     .split(',')
     .map((origin) => normalizeOrigin(origin))
     .filter(Boolean)
 );
+
+if (isProduction && allowedOrigins.size === 0) {
+  console.error('ERROR: No allowed frontend origins configured. Set FRONTEND_ORIGINS or FRONTEND_URL.');
+  process.exit(1);
+}
 
 const flowCallbackOrigins = new Set([
   'https://sandbox.flow.cl',

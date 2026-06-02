@@ -10,6 +10,17 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  const normalizeRole = (value) => {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    if (normalized === 'admin' || normalized === 'dueno') return 'admin';
+    return 'cliente';
+  };
+
   const fetchUserRole = async (userId) => {
     try {
       const roleQuery = supabase
@@ -61,7 +72,7 @@ export const AuthProvider = ({ children }) => {
         }
         // En otros casos, tampoco cambiar el rol
       } else {
-        const newRole = data?.role || 'cliente';
+        const newRole = normalizeRole(data?.role);
         console.log('Rol obtenido:', newRole);
         setUserRole(newRole);
       }

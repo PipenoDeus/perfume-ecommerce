@@ -36,6 +36,14 @@ const AdminPanel = () => {
     loadPerfumes();
   }, []);
 
+  useEffect(() => () => {
+    imagePreviews.forEach((preview) => {
+      if (typeof preview === 'string' && preview.startsWith('blob:')) {
+        URL.revokeObjectURL(preview);
+      }
+    });
+  }, [imagePreviews]);
+
   const loadPerfumes = async () => {
     try {
       setLoading(true);
@@ -54,6 +62,26 @@ const AdminPanel = () => {
       ...prev,
       [name]: value
     }));
+  };
+
+  const handleFilesChange = (e) => {
+    const files = Array.from(e.target.files || []);
+
+    imagePreviews.forEach((preview) => {
+      if (typeof preview === 'string' && preview.startsWith('blob:')) {
+        URL.revokeObjectURL(preview);
+      }
+    });
+
+    if (files.length === 0) {
+      setSelectedFiles([]);
+      setImagePreviews(imageUrls);
+      return;
+    }
+
+    const previewUrls = files.map((file) => URL.createObjectURL(file));
+    setSelectedFiles(files);
+    setImagePreviews(previewUrls);
   };
 
   // Parse a CLP-style string like "1.234,56" or "1.000" or "1000" to a number
@@ -222,10 +250,16 @@ const AdminPanel = () => {
             Productos
           </button>
           <button 
-            className={`admin-tab ${activeTab === 'tracking' ? 'active' : ''}`}
-            onClick={() => setActiveTab('tracking')}
+            className={`admin-tab ${activeTab === 'orders-no-shipping' ? 'active' : ''}`}
+            onClick={() => setActiveTab('orders-no-shipping')}
           >
-            Seguimiento de Órdenes
+            Órdenes sin envío
+          </button>
+          <button 
+            className={`admin-tab ${activeTab === 'orders-shipped' ? 'active' : ''}`}
+            onClick={() => setActiveTab('orders-shipped')}
+          >
+            Órdenes enviadas
           </button>
         </div>
 
@@ -244,7 +278,151 @@ const AdminPanel = () => {
               <div className="form-container">
                 <h2>{editingId ? 'Editar Perfume' : 'Crear Nuevo Perfume'}</h2>
                 <form onSubmit={handleSubmit}>
-                  {/* Resto del formulario es el mismo... */}
+                  <div className="form-group">
+                    <label htmlFor="name">Nombre</label>
+                    <input
+                      id="name"
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder="Ej: Sauvage Elixir"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="brand">Marca</label>
+                      <input
+                        id="brand"
+                        type="text"
+                        name="brand"
+                        value={formData.brand}
+                        onChange={handleInputChange}
+                        placeholder="Ej: Dior"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="category">Categoría</label>
+                      <input
+                        id="category"
+                        type="text"
+                        name="category"
+                        value={formData.category}
+                        onChange={handleInputChange}
+                        placeholder="Ej: Amaderado"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="price">Precio (CLP)</label>
+                      <input
+                        id="price"
+                        type="text"
+                        inputMode="decimal"
+                        name="price"
+                        value={formData.price}
+                        onChange={handleInputChange}
+                        placeholder="Ej: 129.990"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="stock">Stock</label>
+                      <input
+                        id="stock"
+                        type="text"
+                        inputMode="numeric"
+                        name="stock"
+                        value={formData.stock}
+                        onChange={handleInputChange}
+                        placeholder="Ej: 25"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="gender">Género</label>
+                    <select
+                      id="gender"
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleInputChange}
+                    >
+                      <option value="unisex">Unisex</option>
+                      <option value="hombre">Hombre</option>
+                      <option value="mujer">Mujer</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="description">Descripción</label>
+                    <textarea
+                      id="description"
+                      name="description"
+                      rows="4"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                      placeholder="Describe notas, duración y estilo del perfume"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="images">Imágenes</label>
+                    <p className="form-hint">Puedes subir una o varias imágenes.</p>
+                    <input
+                      id="images"
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleFilesChange}
+                    />
+                    {imagePreviews.length > 0 && (
+                      <div className="image-preview-grid">
+                        {imagePreviews.map((src, index) => (
+                          <img key={`${src}-${index}`} src={src} alt={`Vista previa ${index + 1}`} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="image_url">URL de imagen principal (opcional)</label>
+                    <input
+                      id="image_url"
+                      type="url"
+                      name="image_url"
+                      value={formData.image_url}
+                      onChange={handleInputChange}
+                      placeholder="https://..."
+                    />
+                  </div>
+
+                  <div className="form-actions">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={handleCancel}
+                      disabled={uploading}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-success"
+                      disabled={uploading}
+                    >
+                      {uploading ? 'Guardando...' : editingId ? 'Actualizar perfume' : 'Crear perfume'}
+                    </button>
+                  </div>
                 </form>
               </div>
             )}
@@ -312,9 +490,15 @@ const AdminPanel = () => {
           </div>
         )}
 
-        {activeTab === 'tracking' && (
+        {activeTab === 'orders-no-shipping' && (
           <div className="admin-tab-content">
-            <OrderTrackingManager />
+            <OrderTrackingManager mode="without-shipping" />
+          </div>
+        )}
+
+        {activeTab === 'orders-shipped' && (
+          <div className="admin-tab-content">
+            <OrderTrackingManager mode="shipped" />
           </div>
         )}
       </div>

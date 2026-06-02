@@ -1,15 +1,19 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { LanguageContext } from '../context/LanguageContext';
 import { supabase } from '../services/supabase';
+import { fetchCSRFToken, getCSRFToken } from '../services/csrfService';
 import './OrderTrackingManager.css';
 
 const COURIER_OPTIONS = [
   { value: 'starken', label: 'Starken' },
   { value: 'chilexpress', label: 'Chilexpress' },
-  { value: 'correoschile', label: 'CorreosChile' },
+  { value: 'correos', label: 'CorreosChile' },
 ];
 
-const OrderTrackingManager = () => {
+const PENDING_ORDERS_PER_PAGE = 6;
+const TRACKED_ORDERS_PER_PAGE = 6;
+
+const OrderTrackingManager = ({ mode = 'all' }) => {
   const { t } = useContext(LanguageContext);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,6 +23,8 @@ const OrderTrackingManager = () => {
   const [trackingInput, setTrackingInput] = useState('');
   const [shippingCompanyInput, setShippingCompanyInput] = useState('');
   const [statusInput, setStatusInput] = useState('shipped');
+  const [pendingPage, setPendingPage] = useState(1);
+  const [trackedPage, setTrackedPage] = useState(1);
 
   useEffect(() => {
     loadOrders();
@@ -108,7 +114,7 @@ const OrderTrackingManager = () => {
     const map = {
       starken: 'Starken',
       chilexpress: 'Chilexpress',
-      correoschile: 'CorreosChile',
+      correos: 'CorreosChile',
     };
 
     return map[String(company || '').toLowerCase()] || company || 'Sin asignar';
@@ -122,10 +128,38 @@ const OrderTrackingManager = () => {
       return 'chilexpress';
     }
     if (normalized.includes('correoschile') || normalized.includes('correos chile')) {
-      return 'correoschile';
+      return 'correos';
     }
 
+    if (normalized.includes('correos')) return 'correos';
+
     return '';
+  };
+
+  const getOrderCourier = (order) => (
+    normalizeShippingCompany(order?.courier || order?.shipping_company)
+  );
+
+  const getOrderTrackingCode = (order) => String(
+    order?.tracking_code || order?.tracking_number || ''
+  ).trim();
+
+  const getTrackingLink = (courier, code) => {
+    const normalizedCourier = String(courier || '').trim().toLowerCase();
+    const cleanCode = String(code || '').trim();
+
+    if (!cleanCode) return '#';
+
+    switch (normalizedCourier) {
+      case 'correos':
+        return `https://www.correos.cl/seguimiento?envio=${encodeURIComponent(cleanCode)}`;
+      case 'starken':
+        return `https://www.starken.cl/seguimiento?codigo=${encodeURIComponent(cleanCode)}`;
+      case 'chilexpress':
+        return `https://www.chilexpress.cl/Views/ChilexpressCL/Resultado-busqueda.aspx?DATA=${encodeURIComponent(cleanCode)}`;
+      default:
+        return '#';
+    }
   };
 
   const handleEditTracking = (order) => {
@@ -136,8 +170,8 @@ const OrderTrackingManager = () => {
 
     setError(null);
     setEditingId(order.id);
-    setTrackingInput(order.tracking_number || '');
-    setShippingCompanyInput(normalizeShippingCompany(order.shipping_company));
+    setTrackingInput(getOrderTrackingCode(order));
+    setShippingCompanyInput(getOrderCourier(order));
     setStatusInput(normalizeStatusForTrackingSelect(order.status));
   };
 
@@ -163,17 +197,45 @@ const OrderTrackingManager = () => {
 
     try {
       setError(null);
-      const { error: err } = await supabase
-        .from('orders')
-        .update({
-          tracking_number: cleanTracking,
-          shipping_company: shippingCompanyInput,
-          status: statusInput,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', orderId);
 
-      if (err) throw err;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error('No hay sesión activa');
+
+      const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
+      const requestBody = JSON.stringify({
+        trackingCode: cleanTracking,
+        courier: shippingCompanyInput,
+        status: statusInput,
+      });
+
+      const doRequest = async (csrfToken) => fetch(`${API_BASE_URL}/api/orders/${orderId}/tracking`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+        },
+        body: requestBody,
+      });
+
+      const csrfToken = await getCSRFToken();
+      let response = await doRequest(csrfToken);
+
+      if (response.status === 403) {
+        const errorPayload = await response.clone().json().catch(() => ({}));
+        const message = String(errorPayload?.error || '');
+
+        if (/csrf|expired|token/i.test(message)) {
+          const freshToken = await fetchCSRFToken();
+          response = await doRequest(freshToken);
+        }
+      }
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Error ${response.status}`);
+      }
 
       setSuccess('Seguimiento actualizado correctamente');
       setEditingId(null);
@@ -184,11 +246,7 @@ const OrderTrackingManager = () => {
 
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      const message = err?.message?.includes('shipping_company')
-        ? 'Falta la columna shipping_company en la base de datos. Ejecuta el script setup-shipping-tracking.sql en Supabase.'
-        : `Error al actualizar: ${err.message}`;
-
-      setError(message);
+      setError(`Error al actualizar: ${err.message}`);
     }
   };
 
@@ -200,9 +258,38 @@ const OrderTrackingManager = () => {
   };
 
   const pendingOrders = orders.filter(
-    (order) => !order.tracking_number && ['paid', 'processing'].includes(order.status)
+    (order) => !getOrderTrackingCode(order) && !['failed', 'cancelled'].includes(String(order.status || '').toLowerCase())
   );
-  const trackedOrders = orders.filter((order) => order.tracking_number);
+  const trackedOrders = orders.filter((order) => Boolean(getOrderTrackingCode(order)));
+
+  const pendingTotalPages = Math.max(1, Math.ceil(pendingOrders.length / PENDING_ORDERS_PER_PAGE));
+  const paginatedPendingOrders = pendingOrders.slice(
+    (pendingPage - 1) * PENDING_ORDERS_PER_PAGE,
+    pendingPage * PENDING_ORDERS_PER_PAGE
+  );
+
+  const trackedTotalPages = Math.max(1, Math.ceil(trackedOrders.length / TRACKED_ORDERS_PER_PAGE));
+  const paginatedTrackedOrders = trackedOrders.slice(
+    (trackedPage - 1) * TRACKED_ORDERS_PER_PAGE,
+    trackedPage * TRACKED_ORDERS_PER_PAGE
+  );
+
+  useEffect(() => {
+    if (pendingPage > pendingTotalPages) {
+      setPendingPage(pendingTotalPages);
+    }
+  }, [pendingPage, pendingTotalPages]);
+
+  useEffect(() => {
+    if (trackedPage > trackedTotalPages) {
+      setTrackedPage(trackedTotalPages);
+    }
+  }, [trackedPage, trackedTotalPages]);
+
+  useEffect(() => {
+    setPendingPage(1);
+    setTrackedPage(1);
+  }, [mode]);
 
   return (
     <div className="tracking-manager">
@@ -216,13 +303,15 @@ const OrderTrackingManager = () => {
       ) : (
         <>
           {/* Órdenes sin seguimiento */}
+          {(mode === 'all' || mode === 'without-shipping') && (
           <section className="tracking-section">
             <h3>Órdenes Pagadas sin Seguimiento ({pendingOrders.length})</h3>
             {pendingOrders.length === 0 ? (
               <p className="empty-state">Todas las órdenes pagadas tienen seguimiento asignado</p>
             ) : (
+              <>
               <div className="orders-grid">
-                {pendingOrders.map(order => (
+                {paginatedPendingOrders.map(order => (
                   <div key={order.id} className="order-card">
                     <div className="order-card-header">
                       <h4>Orden #{order.id.slice(0, 8).toUpperCase()}</h4>
@@ -293,110 +382,176 @@ const OrderTrackingManager = () => {
                   </div>
                 ))}
               </div>
+              {pendingTotalPages > 1 && (
+                <div className="tracking-pagination">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setPendingPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={pendingPage === 1}
+                  >
+                    Anterior
+                  </button>
+                  <span className="tracking-pagination-info">
+                    Página {pendingPage} de {pendingTotalPages}
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setPendingPage((prev) => Math.min(prev + 1, pendingTotalPages))}
+                    disabled={pendingPage === pendingTotalPages}
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              )}
+              </>
             )}
           </section>
+          )}
 
           {/* Órdenes con seguimiento */}
+          {(mode === 'all' || mode === 'shipped') && (
           <section className="tracking-section">
             <h3>Órdenes Rastreadas ({trackedOrders.length})</h3>
             {trackedOrders.length === 0 ? (
               <p className="empty-state">No hay órdenes con seguimiento aún</p>
             ) : (
-              <div className="tracked-orders-table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Orden</th>
-                      <th>Cliente</th>
-                      <th>Dirección</th>
-                      <th>Total</th>
-                      <th>Estado</th>
-                      <th>Empresa de envío</th>
-                      <th>Número de Seguimiento</th>
-                      <th>Fecha</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {trackedOrders.map(order => (
-                      <tr key={order.id}>
-                        <td>#{order.id.slice(0, 8).toUpperCase()}</td>
-                        <td className="customer-details-cell">
-                          <strong className="customer-name">{order.customer_name}</strong>
-                          <span className="customer-extra">{order.customer_email}</span>
-                          <span className="customer-extra">{order.customer_phone}</span>
-                        </td>
-                        <td className="address-cell">{formatCustomerAddress(order)}</td>
-                        <td>{formatCLP(order.total)}</td>
-                        <td><span className="status-badge">{formatStatus(order.status)}</span></td>
-                        <td>
-                          <span className="shipping-company">{formatShippingCompany(order.shipping_company)}</span>
-                        </td>
-                        <td className="tracking-cell">
-                          <code>{order.tracking_number}</code>
-                        </td>
-                        <td>{formatDate(order.created_at)}</td>
-                        <td>
-                          {editingId === order.id ? (
-                            <div className="inline-edit">
-                              <select
-                                value={shippingCompanyInput}
-                                onChange={(e) => setShippingCompanyInput(e.target.value)}
-                                className="tracking-select-sm"
-                              >
-                                <option value="">Empresa de envío</option>
-                                {COURIER_OPTIONS.map((company) => (
-                                  <option key={company.value} value={company.value}>
-                                    {company.label}
-                                  </option>
-                                ))}
-                              </select>
-                              <input
-                                type="text"
-                                value={trackingInput}
-                                onChange={(e) => setTrackingInput(e.target.value)}
-                                className="tracking-input-sm"
-                              />
-                              <select
-                                value={statusInput}
-                                onChange={(e) => setStatusInput(e.target.value)}
-                                className="status-select-sm"
-                              >
-                                <option value="paid">Pendiente de envio</option>
-                                <option value="shipped">Enviado</option>
-                                <option value="delivered">Recibido</option>
-                              </select>
-                              <div className="inline-edit-actions">
-                                <button
-                                  className="btn btn-sm btn-success"
-                                  onClick={() => handleSaveTracking(order.id)}
-                                >
-                                  ✓
-                                </button>
-                                <button
-                                  className="btn btn-sm btn-secondary"
-                                  onClick={handleCancelEdit}
-                                >
-                                  ✕
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            <button
-                              className="btn btn-sm btn-edit"
-                              onClick={() => handleEditTracking(order)}
-                            >
-                              Editar
-                            </button>
-                          )}
-                        </td>
+              <>
+                <div className="tracked-orders-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Orden</th>
+                        <th>Cliente</th>
+                        <th>Dirección</th>
+                        <th>Total</th>
+                        <th>Estado</th>
+                        <th>Empresa de envío</th>
+                        <th>Número de Seguimiento</th>
+                        <th>Fecha</th>
+                        <th>Acciones</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {paginatedTrackedOrders.map(order => (
+                        <tr key={order.id}>
+                          <td>#{order.id.slice(0, 8).toUpperCase()}</td>
+                          <td className="customer-details-cell">
+                            <strong className="customer-name">{order.customer_name}</strong>
+                            <span className="customer-extra">{order.customer_email}</span>
+                            <span className="customer-extra">{order.customer_phone}</span>
+                          </td>
+                          <td className="address-cell">{formatCustomerAddress(order)}</td>
+                          <td>{formatCLP(order.total)}</td>
+                          <td><span className="status-badge">{formatStatus(order.status)}</span></td>
+                          <td>
+                            <span className="shipping-company">{formatShippingCompany(getOrderCourier(order))}</span>
+                          </td>
+                          <td className="tracking-cell">
+                            <code>{getOrderTrackingCode(order)}</code>
+                            {editingId !== order.id && (
+                              <button
+                                className="btn btn-sm btn-edit"
+                                onClick={() => handleEditTracking(order)}
+                                aria-label="Editar seguimiento"
+                                title="Editar seguimiento"
+                              >
+                                ✏️
+                              </button>
+                            )}
+                          </td>
+                          <td className="date-cell">{formatDate(order.created_at)}</td>
+                          <td>
+                            {editingId === order.id ? (
+                              <div className="inline-edit">
+                                <select
+                                  value={shippingCompanyInput}
+                                  onChange={(e) => setShippingCompanyInput(e.target.value)}
+                                  className="tracking-select-sm"
+                                >
+                                  <option value="">Empresa de envío</option>
+                                  {COURIER_OPTIONS.map((company) => (
+                                    <option key={company.value} value={company.value}>
+                                      {company.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                <input
+                                  type="text"
+                                  value={trackingInput}
+                                  onChange={(e) => setTrackingInput(e.target.value)}
+                                  className="tracking-input-sm"
+                                />
+                                <select
+                                  value={statusInput}
+                                  onChange={(e) => setStatusInput(e.target.value)}
+                                  className="status-select-sm"
+                                >
+                                  <option value="paid">Pendiente de envio</option>
+                                  <option value="shipped">Enviado</option>
+                                  <option value="delivered">Recibido</option>
+                                </select>
+                                <div className="inline-edit-actions">
+                                  <button
+                                    className="btn btn-sm btn-success"
+                                    onClick={() => handleSaveTracking(order.id)}
+                                  >
+                                    ✓
+                                  </button>
+                                  <button
+                                    className="btn btn-sm btn-secondary"
+                                    onClick={handleCancelEdit}
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="tracking-actions-cell">
+                                <a
+                                  href={getTrackingLink(getOrderCourier(order), getOrderTrackingCode(order))}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="btn btn-sm btn-primary"
+                                >
+                                  Ver seguimiento
+                                </a>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {trackedTotalPages > 1 && (
+                  <div className="tracking-pagination">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setTrackedPage((prev) => Math.max(prev - 1, 1))}
+                      disabled={trackedPage === 1}
+                    >
+                      Anterior
+                    </button>
+                    <span className="tracking-pagination-info">
+                      Página {trackedPage} de {trackedTotalPages}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setTrackedPage((prev) => Math.min(prev + 1, trackedTotalPages))}
+                      disabled={trackedPage === trackedTotalPages}
+                    >
+                      Siguiente
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </section>
+          )}
         </>
       )}
     </div>

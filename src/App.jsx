@@ -7,7 +7,6 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import WhatsAppContact from './components/WhatsAppContact';
 import ProtectedAdminRoute from './components/ProtectedAdminRoute';
-import ProtectedDuenoRoute from './components/ProtectedDuenoRoute';
 import ProtectedUserRoute from './components/ProtectedUserRoute';
 import Home from './pages/Home';
 import Products from './pages/Products';
@@ -21,7 +20,6 @@ import Profile from './pages/Profile';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancelled from './pages/PaymentCancelled';
 import AdminPanel from './pages/AdminPanel';
-import AdminsPanel from './pages/AdminsPanel';
 import About from './pages/About';
 import FAQ from './pages/FAQ';
 import ShippingInfo from './pages/ShippingInfo';
@@ -74,14 +72,6 @@ function AppContent() {
               <ProtectedAdminRoute>
                 <AdminPanel />
               </ProtectedAdminRoute>
-            }
-          />
-          <Route
-            path="/admin-users"
-            element={
-              <ProtectedDuenoRoute>
-                <AdminsPanel />
-              </ProtectedDuenoRoute>
             }
           />
         </Routes>

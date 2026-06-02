@@ -1,46 +1,46 @@
 import crypto from 'crypto';
 
-const csrfTokens = new Map(); // Store tokens with expiry (in production use Redis)
+const isProduction = process.env.NODE_ENV === 'production';
+
+const parseCookies = (cookieHeader = '') => {
+  return cookieHeader.split(';').reduce((cookies, pair) => {
+    const [name, ...rest] = pair.split('=');
+    if (!name) return cookies;
+    cookies[name.trim()] = decodeURIComponent((rest || []).join('=').trim());
+    return cookies;
+  }, {});
+};
 
 export const generateCSRFToken = (req, res, next) => {
   const token = crypto.randomBytes(32).toString('hex');
-  const expiryTime = Date.now() + 3600000; // 1 hour
-  
-  csrfTokens.set(token, expiryTime);
+
+  res.cookie('csrfToken', token, {
+    httpOnly: false,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 60 * 60 * 1000,
+    path: '/',
+  });
+
   res.locals.csrfToken = token;
-  
   next();
 };
 
 export const validateCSRFToken = (req, res, next) => {
-  // Skip CSRF check for GET, HEAD, OPTIONS (safe methods)
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
     return next();
   }
 
-  const token = req.headers['x-csrf-token'] || req.body.csrfToken;
-  
+  const token = req.headers['x-csrf-token'] || req.body?.csrfToken;
+  const cookieToken = parseCookies(req.headers.cookie || '').csrfToken;
+
   if (!token) {
     return res.status(403).json({ error: 'Missing CSRF token' });
   }
 
-  const expiryTime = csrfTokens.get(token);
-  
-  if (!expiryTime || expiryTime < Date.now()) {
-    return res.status(403).json({ error: 'Invalid or expired CSRF token' });
+  if (!cookieToken || token !== cookieToken) {
+    return res.status(403).json({ error: 'Invalid CSRF token' });
   }
 
-  // Keep token valid until expiry to support client-side caching
-  
   next();
 };
-
-// Cleanup expired tokens every 10 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [token, expiryTime] of csrfTokens.entries()) {
-    if (expiryTime < now) {
-      csrfTokens.delete(token);
-    }
-  }
-}, 600000);
