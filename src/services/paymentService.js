@@ -63,8 +63,18 @@ export const orderService = {
     const token = await getAuthToken();
     if (!token) throw new Error('Not authenticated');
 
+    const csrfToken = await getCSRFToken();
+    console.log('[CSRF DEBUG] createOrder sending order', {
+      url: `${API_BASE_URL}/api/orders`,
+      cookies: typeof document !== 'undefined' ? document.cookie : null,
+      csrfTokenPresent: Boolean(csrfToken),
+      authHeader: !!token,
+    });
+
     const response = await fetchWithCSRFRetry(`${API_BASE_URL}/api/orders`, {
       method: 'POST',
+      mode: 'cors',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
