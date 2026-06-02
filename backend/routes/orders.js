@@ -15,7 +15,6 @@ const router = express.Router();
 // Create order
 router.post('/', authenticateUser, async (req, res) => {
   try {
-    // Debug logging to trace checkout flow
     console.log('[ORDERS] POST /api/orders', {
       path: req.path,
       userId: req.user?.id || null,
@@ -34,7 +33,6 @@ router.post('/', authenticateUser, async (req, res) => {
       return res.status(400).json({ error: 'Invalid shipping address' });
     }
 
-    // Validate items have required fields
     for (const item of items) {
       if (!item.id || !item.price || !item.quantity) {
         return res.status(400).json({ error: 'Invalid item format' });
@@ -47,10 +45,30 @@ router.post('/', authenticateUser, async (req, res) => {
       }
     }
 
-    const order = await createOrder(req.user.id, items, shippingAddress);
+    console.log('[ORDERS DATA]', {
+      userId: req.user.id,
+      items,
+      shippingAddress
+    });
+
+    const order = await createOrder(
+      req.user.id,
+      items,
+      shippingAddress
+    );
+
+    console.log('[ORDER CREATED]', order);
+
     res.status(201).json(order);
+
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[ORDERS ERROR]', error);
+    console.error('[ORDERS ERROR MESSAGE]', error?.message);
+    console.error('[ORDERS ERROR STACK]', error?.stack);
+
+    res.status(500).json({
+      error: error.message,
+    });
   }
 });
 
