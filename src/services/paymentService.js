@@ -6,20 +6,39 @@ const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').r
 const fetchWithCSRFRetry = async (url, options = {}) => {
   const token = await getCSRFToken();
 
-  const doRequest = async (csrfToken) => fetch(url, {
-    credentials: 'include',
-    ...options,
-    headers: {
-      ...(options.headers || {}),
-      ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-    },
-  });
+  const doRequest = async (csrfToken) => {
+    console.log('[CSRF] Sending request', {
+      url,
+      method: options.method || 'GET',
+      csrfTokenPresent: Boolean(csrfToken),
+      credentials: 'include',
+      headers: {
+        ...(options.headers || {}),
+        ...(csrfToken ? { 'X-CSRF-Token': 'present' } : {}),
+      },
+    });
+
+    return fetch(url, {
+      credentials: 'include',
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+      },
+    });
+  };
 
   let response = await doRequest(token);
 
   if (response.status === 403) {
     const errorPayload = await response.clone().json().catch(() => ({}));
     const message = String(errorPayload?.error || '');
+
+    console.warn('[CSRF] Request returned 403', {
+      url,
+      message,
+      retrying: /csrf|expired/i.test(message),
+    });
 
     if (/csrf|expired/i.test(message)) {
       const freshToken = await fetchCSRFToken();

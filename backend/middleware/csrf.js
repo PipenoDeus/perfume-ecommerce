@@ -16,6 +16,12 @@ export const generateCSRFToken = (req, res, next) => {
   const existingToken = existingCookies.csrfToken;
 
   if (existingToken) {
+    console.log('[CSRF] Existing CSRF cookie detected', {
+      path: req.path,
+      origin: req.headers.origin || null,
+      tokenPreview: `${String(existingToken).slice(0, 8)}...`,
+      hasCookieHeader: Boolean(req.headers.cookie),
+    });
     res.locals.csrfToken = existingToken;
     return next();
   }
@@ -24,6 +30,12 @@ export const generateCSRFToken = (req, res, next) => {
   // If the cookie is missing, validation should fail instead of regenerating a token
   // and invalidating the incoming header value.
   if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    console.log('[CSRF] No existing CSRF cookie on unsafe request', {
+      path: req.path,
+      method: req.method,
+      origin: req.headers.origin || null,
+      hasCookieHeader: Boolean(req.headers.cookie),
+    });
     return next();
   }
 
@@ -35,6 +47,14 @@ export const generateCSRFToken = (req, res, next) => {
     sameSite: isProduction ? 'none' : 'lax',
     maxAge: 60 * 60 * 1000,
     path: '/',
+  });
+
+  console.log('[CSRF] Generated token and set cookie', {
+    path: req.path,
+    origin: req.headers.origin || null,
+    tokenPreview: `${token.slice(0, 8)}...`,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
   });
 
   res.locals.csrfToken = token;
@@ -55,10 +75,12 @@ export const validateCSRFToken = (req, res, next) => {
       path: req.path,
       method: req.method,
       origin: req.headers.origin || null,
+      referer: req.headers.referer || null,
       hasCookie: Boolean(req.headers.cookie),
+      rawCookieHeaderPreview: req.headers.cookie ? `${req.headers.cookie.slice(0, 50)}...` : null,
       tokenProvided: Boolean(token),
-      tokenPreview: token ? `${String(token).slice(0,6)}...` : null,
-      cookieTokenPreview: cookieToken ? `${String(cookieToken).slice(0,6)}...` : null,
+      tokenPreview: token ? `${String(token).slice(0, 6)}...` : null,
+      cookieTokenPreview: cookieToken ? `${String(cookieToken).slice(0, 6)}...` : null,
     });
   } catch (e) {
     /* ignore logging errors */

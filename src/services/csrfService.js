@@ -22,6 +22,7 @@ let tokenExpiry = null;
  * Fetch a new CSRF token from the backend
  */
 export async function fetchCSRFToken() {
+  console.log('[CSRF] Fetching token from backend', { url: buildUrl() });
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 8000);
 
@@ -41,6 +42,12 @@ export async function fetchCSRFToken() {
 
     const data = await response.json();
     csrfToken = data.csrfToken || data.token || null;
+
+    console.log('[CSRF] Token received', {
+      csrfTokenPresent: Boolean(csrfToken),
+      responseStatus: response.status,
+      hasTokenInResponse: Boolean(data.csrfToken || data.token),
+    });
 
     if (!csrfToken) {
       throw new Error('CSRF token missing in response');

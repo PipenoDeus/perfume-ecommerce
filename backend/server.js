@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import path from 'path';
@@ -52,6 +53,9 @@ if (!enableLogs) {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Required when running behind Railway / other proxies so Express trusts forwarded HTTPS
+app.set('trust proxy', 1);
 
 // Security headers
 app.use(helmet({
@@ -213,6 +217,7 @@ app.use(generalLimiter);
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // CSRF Token generation
 app.use(generateCSRFToken);
@@ -253,7 +258,31 @@ export const supabase = _supabase;
 
 // Get CSRF token endpoint
 app.get('/api/csrf-token', (req, res) => {
+  console.log('[CSRF] Token endpoint hit', {
+    origin: req.headers.origin || null,
+    cookieHeader: req.headers.cookie || null,
+    hasCookie: Boolean(req.headers.cookie),
+    requestPath: req.path,
+    method: req.method,
+    tokenBeingSent: Boolean(res.locals.csrfToken),
+  });
   res.json({ csrfToken: res.locals.csrfToken });
+});
+
+// Debug endpoint for cookie diagnostics
+app.get('/api/debug/cookies', (req, res) => {
+  console.log('[DEBUG] Cookie diagnostics', {
+    origin: req.headers.origin || null,
+    rawCookieHeader: req.headers.cookie || null,
+    parsedCookies: req.cookies,
+    path: req.path,
+    method: req.method,
+  });
+  res.json({
+    cookies: req.cookies,
+    rawCookieHeader: req.headers.cookie || null,
+    origin: req.headers.origin || null,
+  });
 });
 
 // Routes with rate limiting
