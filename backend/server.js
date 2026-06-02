@@ -147,47 +147,47 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use((req, res, next) => {
-  cors({
-    origin: (origin, callback) => {
+// CORS options configured for preflight and actual requests
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (CORS_DEBUG) {
+      console.log('[CORS DEBUG] Incoming request:', {
+        method: 'OPTIONS or actual',
+        origin: origin || null,
+        normalizedOrigin: normalizeOrigin(origin),
+      });
+    }
+
+    if (isAllowedCorsOrigin(origin, '/')) {
       if (CORS_DEBUG) {
-        console.log('[CORS DEBUG] Incoming request:', {
-          method: req.method,
-          path: req.path,
-          origin: origin || null,
-          normalizedOrigin: normalizeOrigin(origin),
-          referer: req.headers.referer || null,
-          host: req.headers.host || null,
-        });
+        console.log('[CORS DEBUG] Allowed request');
       }
+      callback(null, true);
+      return;
+    }
 
-      if (isAllowedCorsOrigin(origin, req.path)) {
-        if (CORS_DEBUG) {
-          console.log('[CORS DEBUG] Allowed request');
-        }
-        callback(null, true);
-        return;
-      }
+    if (CORS_DEBUG) {
+      console.warn('[CORS DEBUG] Blocked request:', {
+        origin: origin || null,
+        normalizedOrigin: normalizeOrigin(origin),
+        allowedOrigins: Array.from(allowedOrigins),
+        flowCallbackOrigins: Array.from(flowCallbackOrigins),
+      });
+    }
 
-      if (CORS_DEBUG) {
-        console.warn('[CORS DEBUG] Blocked request:', {
-          method: req.method,
-          path: req.path,
-          origin: origin || null,
-          normalizedOrigin: normalizeOrigin(origin),
-          allowedOrigins: Array.from(allowedOrigins),
-          flowCallbackOrigins: Array.from(flowCallbackOrigins),
-          flowCallbackPaths: Array.from(flowCallbackPaths),
-        });
-      }
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+  optionsSuccessStatus: 200,
+};
 
-      callback(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
-  })(req, res, next);
-});
+// Handle preflight requests for all routes
+app.options('*', cors(corsOptions));
+
+// Apply CORS middleware to all routes
+app.use(cors(corsOptions));
 
 // Rate limiting - general
 app.use(generalLimiter);
