@@ -14,7 +14,16 @@ import regionsRouter from './routes/regions.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config({ path: path.join(__dirname, '.env') });
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+}
+
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error("Missing required env vars");
+  process.exit(1);
+}
+
+const isProduction = process.env.NODE_ENV === 'production';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const enableLogs = process.env.ENABLE_LOGS === 'true' || !isProduction;
