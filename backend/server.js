@@ -83,7 +83,7 @@ const normalizePath = (requestPath) => {
   return requestPath.replace(/\/+$/, '');
 };
 
-const rawFrontendOrigins = process.env.FRONTEND_ORIGINS || process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:5174';
+const rawFrontendOrigins = process.env.FRONTEND_ORIGINS || process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:5173,http://localhost:5174';
 const allowedOrigins = new Set(
   rawFrontendOrigins
     .split(',')
@@ -284,7 +284,7 @@ try {
   console.log('🚀 Server starting...');
   console.log('[CONFIG] NODE_ENV=', process.env.NODE_ENV || 'not set');
   console.log('[CONFIG] PORT=', PORT);
-  console.log('[CONFIG] FRONTEND_URLS=', process.env.FRONTEND_URL || process.env.FRONTEND_ORIGINS || 'not set');
+  console.log('[CONFIG] FRONTEND_URLS=', process.env.FRONTEND_ORIGINS || process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'not set');
   console.log('[CONFIG] SUPABASE_URL=', process.env.SUPABASE_URL || 'not set');
 
   app.listen(PORT, '0.0.0.0', () => {
