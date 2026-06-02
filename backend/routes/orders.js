@@ -15,6 +15,15 @@ const router = express.Router();
 // Create order
 router.post('/', authenticateUser, async (req, res) => {
   try {
+    // Debug logging to trace checkout flow
+    console.log('[ORDERS] POST /api/orders', {
+      path: req.path,
+      userId: req.user?.id || null,
+      hasAuthHeader: !!req.headers.authorization,
+      csrfHeader: req.headers['x-csrf-token'] ? 'present' : 'missing',
+      hasCookie: !!req.headers.cookie,
+    });
+
     const { items, shippingAddress } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {

@@ -49,11 +49,43 @@ export const validateCSRFToken = (req, res, next) => {
   const token = req.headers['x-csrf-token'] || req.body?.csrfToken;
   const cookieToken = parseCookies(req.headers.cookie || '').csrfToken;
 
+  // Debug logs to help trace CSRF failures. Controlled by global logging settings.
+  try {
+    console.log('[CSRF] validate:', {
+      path: req.path,
+      method: req.method,
+      origin: req.headers.origin || null,
+      hasCookie: Boolean(req.headers.cookie),
+      tokenProvided: Boolean(token),
+      tokenPreview: token ? `${String(token).slice(0,6)}...` : null,
+      cookieTokenPreview: cookieToken ? `${String(cookieToken).slice(0,6)}...` : null,
+    });
+  } catch (e) {
+    /* ignore logging errors */
+  }
+
   if (!token) {
+    console.warn('[CSRF] Missing token - request blocked', {
+      path: req.path,
+      method: req.method,
+      origin: req.headers.origin || null,
+      headers: {
+        origin: req.headers.origin,
+        referer: req.headers.referer,
+        cookie: !!req.headers.cookie,
+      }
+    });
     return res.status(403).json({ error: 'Missing CSRF token' });
   }
 
   if (!cookieToken || token !== cookieToken) {
+    console.warn('[CSRF] Invalid token - request blocked', {
+      path: req.path,
+      method: req.method,
+      origin: req.headers.origin || null,
+      tokenPreview: token ? `${String(token).slice(0,8)}...` : null,
+      cookieTokenPreview: cookieToken ? `${String(cookieToken).slice(0,8)}...` : null,
+    });
     return res.status(403).json({ error: 'Invalid CSRF token' });
   }
 

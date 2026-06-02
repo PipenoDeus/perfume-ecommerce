@@ -21,7 +21,11 @@ const supabase = createClient(
 export const authenticateUser = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
+    // Log incoming auth header presence for debugging
+    console.log('[AUTH] authenticateUser:', { path: req.path, hasAuthHeader: !!authHeader });
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.warn('[AUTH] Missing or invalid Authorization header', { path: req.path, authHeader: authHeader ? 'present' : 'missing' });
       return res.status(401).json({ error: 'Missing or invalid authorization header' });
     }
 
@@ -31,17 +35,20 @@ export const authenticateUser = async (req, res, next) => {
     const { data: { user }, error } = await supabase.auth.getUser(token);
 
     if (error || !user) {
+      console.warn('[AUTH] supabase.auth.getUser failed', { error: error || null });
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
     // Verify token is not tampered with by decoding and checking structure
     const decoded = jwt.decode(token);
     if (!decoded || !decoded.sub || decoded.sub !== user.id) {
+      console.warn('[AUTH] Token verification failed', { decoded, userId: user.id });
       return res.status(401).json({ error: 'Token verification failed' });
     }
 
     // Check token is not expired
     if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+      console.warn('[AUTH] Token expired', { userId: user.id });
       return res.status(401).json({ error: 'Token expired' });
     }
 
@@ -50,6 +57,8 @@ export const authenticateUser = async (req, res, next) => {
       email: user.email,
       role: user.user_metadata?.role || 'cliente'
     };
+
+    console.log('[AUTH] authenticated', { userId: req.user.id, role: req.user.role });
 
     next();
   } catch (error) {
