@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 
 const isProduction = process.env.NODE_ENV === 'production';
+const CSRF_TOKEN_TTL = 55 * 60 * 1000;
+const csrfTokenStore = new Map();
 
 const parseCookies = (cookieHeader = '') => {
   return cookieHeader.split(';').reduce((cookies, pair) => {
@@ -9,6 +11,25 @@ const parseCookies = (cookieHeader = '') => {
     cookies[name.trim()] = decodeURIComponent((rest || []).join('=').trim());
     return cookies;
   }, {});
+};
+
+const pruneExpiredTokens = () => {
+  const now = Date.now();
+  for (const [token, expiresAt] of csrfTokenStore.entries()) {
+    if (expiresAt <= now) {
+      csrfTokenStore.delete(token);
+    }
+  }
+};
+
+const storeCSRFToken = (token) => {
+  pruneExpiredTokens();
+  csrfTokenStore.set(token, Date.now() + CSRF_TOKEN_TTL);
+};
+
+const isStoredCSRFToken = (token) => {
+  pruneExpiredTokens();
+  return token ? csrfTokenStore.has(token) : false;
 };
 
 export const generateCSRFToken = (req, res, next) => {
@@ -45,9 +66,11 @@ export const generateCSRFToken = (req, res, next) => {
     httpOnly: false,
     secure: isProduction,
     sameSite: isProduction ? 'none' : 'lax',
-    maxAge: 60 * 60 * 1000,
+    maxAge: CSRF_TOKEN_TTL,
     path: '/',
   });
+
+  storeCSRFToken(token);
 
   console.log('[CSRF] Generated token and set cookie', {
     path: req.path,
@@ -101,15 +124,27 @@ export const validateCSRFToken = (req, res, next) => {
     return res.status(403).json({ error: 'Missing CSRF token' });
   }
 
-  if (!cookieToken || token !== cookieToken) {
+  const validToken = cookieToken ? token === cookieToken : false;
+  const validStoredToken = !cookieToken && isStoredCSRFToken(token);
+
+  if (!validToken && !validStoredToken) {
     console.warn('[CSRF] Invalid token - request blocked', {
       path: req.path,
       method: req.method,
       origin: req.headers.origin || null,
       tokenPreview: token ? `${String(token).slice(0,8)}...` : null,
       cookieTokenPreview: cookieToken ? `${String(cookieToken).slice(0,8)}...` : null,
+      storedTokenAvailable: Boolean(token && isStoredCSRFToken(token)),
     });
     return res.status(403).json({ error: 'Invalid CSRF token' });
+  }
+
+  if (validStoredToken) {
+    console.log('[CSRF] Valid header-only CSRF token accepted', {
+      path: req.path,
+      origin: req.headers.origin || null,
+      tokenPreview: token ? `${String(token).slice(0,8)}...` : null,
+    });
   }
 
   next();
