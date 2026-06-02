@@ -114,10 +114,22 @@ console.log(`[CORS] Allowed Origins:`, Array.from(allowedOrigins));
 console.log(`[CORS] Flow Callback Origins:`, Array.from(flowCallbackOrigins));
 console.log(`[CORS] Flow Callback Paths:`, Array.from(flowCallbackPaths));
 
-const isAllowedVercelPreviewOrigin = (origin) => {
+const isAllowedVercelOrigin = (origin) => {
   if (!origin) return false;
   const normalizedOrigin = normalizeOrigin(origin);
-  return normalizedOrigin.endsWith('.pipedeus-projects.vercel.app');
+
+  // Prefer parsing the hostname for robust matching (handles protocol prefixes)
+  try {
+    const hostname = new URL(normalizedOrigin).hostname;
+    if (hostname.endsWith('.vercel.app')) return true;
+    if (hostname.endsWith('-pipedeus-projects.vercel.app')) return true;
+    return false;
+  } catch (e) {
+    // Fallback to string-based checks if URL parsing fails
+    if (normalizedOrigin.endsWith('.vercel.app')) return true;
+    if (normalizedOrigin.endsWith('-pipedeus-projects.vercel.app')) return true;
+    return false;
+  }
 };
 
 const isAllowedCorsOrigin = (origin, requestPath) => {
@@ -125,7 +137,7 @@ const isAllowedCorsOrigin = (origin, requestPath) => {
   const normalizedPath = normalizePath(requestPath);
   const isFlowCallbackPath = flowCallbackPaths.has(normalizedPath);
 
-  if (!normalizedOrigin || allowedOrigins.has(normalizedOrigin) || isAllowedVercelPreviewOrigin(normalizedOrigin)) {
+  if (!normalizedOrigin || allowedOrigins.has(normalizedOrigin) || isAllowedVercelOrigin(normalizedOrigin)) {
     return true;
   }
 
