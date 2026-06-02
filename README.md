@@ -11,8 +11,7 @@ Una tienda de perfumes moderna y completamente funcional construida con React, V
 - 📦 Sistema de gestión de pedidos
 - 💰 Flujo de compra completo
 - 📱 Diseño completamente responsivo
-- 🎨 Interfaz elegante con diseño moderno en oro y azul
-- 🌐 Soporte multiidioma (Español e Inglés)
+- 🎨 Interfaz elegante con diseño moderno en oro
 
 ## Stack Tecnológico
 
@@ -145,13 +144,13 @@ authService - Métodos de autenticación de usuarios.
 orderService - Métodos de gestión de pedidos.
 ## Mejoras Futuras
 
-[]Reseñas y valoraciones de usuarios.
+Reseñas y valoraciones de usuarios.
 
-[]Notificaciones por correo electrónico.
+Notificaciones por correo electrónico.
 
-[]Funcionalidad de lista de deseos.
+Funcionalidad de lista de deseos.
 
-[]Recomendaciones de productos.
+Recomendaciones de productos.
 
-[]Interruptor de modo oscuro.
+Interruptor de modo oscuro.
 
