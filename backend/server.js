@@ -11,15 +11,31 @@ import ordersRouter from './routes/orders.js';
 import paymentsRouter from './routes/payments.js';
 import regionsRouter from './routes/regions.js';
 
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Load local .env only in non-production environments (Railway/production provide envs)
 if (process.env.NODE_ENV !== 'production') {
   dotenv.config();
 }
 
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  console.error("Missing required env vars");
+// Global handlers to ensure errors are always logged (avoid silent crashes)
+process.on('uncaughtException', (err) => {
+  console.error('[UNCAUGHT_EXCEPTION] Shutting down due to uncaught exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[UNHANDLED_REJECTION] Shutting down due to unhandled promise rejection:', reason);
+  process.exit(1);
+});
+
+// Validate required environment variables early and fail loudly if missing
+const requiredEnvs = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
+const missing = requiredEnvs.filter((name) => !process.env[name]);
+if (missing.length > 0) {
+  console.error('[ENV ERROR] Missing required environment variables:', missing.join(', '));
   process.exit(1);
 }
 
@@ -204,10 +220,18 @@ app.use((req, res, next) => {
 });
 
 // Initialize Supabase client (use service role for server-side operations)
-export const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+let _supabase;
+try {
+  _supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+} catch (err) {
+  console.error('[INIT ERROR] Failed to initialize Supabase client:', err);
+  process.exit(1);
+}
+
+export const supabase = _supabase;
 
 // Get CSRF token endpoint
 app.get('/api/csrf-token', (req, res) => {
@@ -249,8 +273,19 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: message });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`✅ Backend server running on port ${PORT}`);
-  console.log(`🔒 Security features enabled: Helmet, CORS, Rate Limiting, CSRF Protection, JWT Verification`);
-});
+// Start server with clear startup logs
+try {
+  console.log('🚀 Server starting...');
+  console.log('[CONFIG] NODE_ENV=', process.env.NODE_ENV || 'not set');
+  console.log('[CONFIG] PORT=', PORT);
+  console.log('[CONFIG] FRONTEND_URLS=', process.env.FRONTEND_URL || process.env.FRONTEND_ORIGINS || 'not set');
+  console.log('[CONFIG] SUPABASE_URL=', process.env.SUPABASE_URL || 'not set');
+
+  app.listen(PORT, () => {
+    console.log(`✅ Backend running on port ${PORT}`);
+    console.log(`🔒 Security features enabled: Helmet, CORS, Rate Limiting, CSRF Protection, JWT Verification`);
+  });
+} catch (err) {
+  console.error('[STARTUP ERROR] Failed to start server:', err);
+  process.exit(1);
+}

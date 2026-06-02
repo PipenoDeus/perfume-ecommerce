@@ -6,6 +6,13 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Initialize Supabase to get JWT verification
+// Validate required env for this module
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+  console.error('[ENV ERROR][auth] Missing SUPABASE_URL or SUPABASE_ANON_KEY');
+  // Throw early to surface error in logs instead of failing inside createClient
+  throw new Error('Missing SUPABASE_URL or SUPABASE_ANON_KEY in environment');
+}
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY

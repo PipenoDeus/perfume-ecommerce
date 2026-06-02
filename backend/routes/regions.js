@@ -15,6 +15,7 @@ router.get('/', async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
+    console.error('[REGIONS ERROR]', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -37,6 +38,7 @@ router.get('/:regionId/communes', async (req, res) => {
     if (error) throw error;
     return res.json(data || []);
   } catch (error) {
+    console.error('[REGIONS/COMMUNES ERROR]', error);
     return res.status(500).json({ error: error.message });
   }
 });
