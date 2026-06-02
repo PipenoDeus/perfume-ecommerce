@@ -114,12 +114,18 @@ console.log(`[CORS] Allowed Origins:`, Array.from(allowedOrigins));
 console.log(`[CORS] Flow Callback Origins:`, Array.from(flowCallbackOrigins));
 console.log(`[CORS] Flow Callback Paths:`, Array.from(flowCallbackPaths));
 
+const isAllowedVercelPreviewOrigin = (origin) => {
+  if (!origin) return false;
+  const normalizedOrigin = normalizeOrigin(origin);
+  return normalizedOrigin.endsWith('.pipedeus-projects.vercel.app');
+};
+
 const isAllowedCorsOrigin = (origin, requestPath) => {
   const normalizedOrigin = normalizeOrigin(origin);
   const normalizedPath = normalizePath(requestPath);
   const isFlowCallbackPath = flowCallbackPaths.has(normalizedPath);
 
-  if (!normalizedOrigin || allowedOrigins.has(normalizedOrigin)) {
+  if (!normalizedOrigin || allowedOrigins.has(normalizedOrigin) || isAllowedVercelPreviewOrigin(normalizedOrigin)) {
     return true;
   }
 
