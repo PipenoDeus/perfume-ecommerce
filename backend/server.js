@@ -16,6 +16,18 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
+// Validate required environment variables before anything else so the process
+// fails fast with a clear message instead of crashing silently.
+const REQUIRED_ENV_VARS = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
+const missingEnvVars = REQUIRED_ENV_VARS.filter((key) => !process.env[key]?.trim());
+if (missingEnvVars.length > 0) {
+  console.error(
+    `[STARTUP ERROR] Missing required environment variable(s): ${missingEnvVars.join(', ')}. ` +
+    'Set these values in your Railway service variables and redeploy.'
+  );
+  process.exit(1);
+}
+
 const isProduction = process.env.NODE_ENV === 'production';
 const enableLogs = process.env.ENABLE_LOGS === 'true' || !isProduction;
 
@@ -196,10 +208,17 @@ app.use((req, res, next) => {
 });
 
 // Initialize Supabase client (use service role for server-side operations)
-export const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+let supabase;
+try {
+  supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+} catch (err) {
+  console.error('[STARTUP ERROR] Failed to initialize Supabase client:', err.message);
+  process.exit(1);
+}
+export { supabase };
 
 // Get CSRF token endpoint
 app.get('/api/csrf-token', (req, res) => {
@@ -245,4 +264,6 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`✅ Backend server running on port ${PORT}`);
   console.log(`🔒 Security features enabled: Helmet, CORS, Rate Limiting, CSRF Protection, JWT Verification`);
+  console.log(`🗄️  Supabase client initialized for: ${process.env.SUPABASE_URL}`);
+  console.log(`🚀 Server startup complete. Listening for requests.`);
 });
