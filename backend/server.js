@@ -281,7 +281,7 @@ try {
   console.log('[CONFIG] FRONTEND_URLS=', process.env.FRONTEND_URL || process.env.FRONTEND_ORIGINS || 'not set');
   console.log('[CONFIG] SUPABASE_URL=', process.env.SUPABASE_URL || 'not set');
 
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ Backend running on port ${PORT}`);
     console.log(`🔒 Security features enabled: Helmet, CORS, Rate Limiting, CSRF Protection, JWT Verification`);
   });
