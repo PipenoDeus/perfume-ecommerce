@@ -169,18 +169,18 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS options configured for preflight and actual requests
-const corsOptions = {
+const buildCorsOptions = (req) => ({
   origin: (origin, callback) => {
     if (CORS_DEBUG) {
       console.log('[CORS DEBUG] Incoming request:', {
-        method: 'OPTIONS or actual',
+        method: req.method,
+        path: req.path,
         origin: origin || null,
         normalizedOrigin: normalizeOrigin(origin),
       });
     }
 
-    if (isAllowedCorsOrigin(origin, '/')) {
+    if (isAllowedCorsOrigin(origin, req.path)) {
       if (CORS_DEBUG) {
         console.log('[CORS DEBUG] Allowed request');
       }
@@ -192,6 +192,7 @@ const corsOptions = {
       console.warn('[CORS DEBUG] Blocked request:', {
         origin: origin || null,
         normalizedOrigin: normalizeOrigin(origin),
+        path: req.path,
         allowedOrigins: Array.from(allowedOrigins),
         flowCallbackOrigins: Array.from(flowCallbackOrigins),
       });
@@ -203,13 +204,17 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
   optionsSuccessStatus: 200,
+});
+
+const corsOptionsDelegate = (req, callback) => {
+  callback(null, buildCorsOptions(req));
 };
 
 // Handle preflight requests for all routes
-app.options('*', cors(corsOptions));
+app.options('*', cors(corsOptionsDelegate));
 
 // Apply CORS middleware to all routes
-app.use(cors(corsOptions));
+app.use(cors(corsOptionsDelegate));
 
 // Force credential headers and origin variance for every CORS response
 app.use((req, res, next) => {

@@ -2,34 +2,19 @@ import crypto from 'crypto';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const CSRF_TOKEN_TTL = 55 * 60 * 1000;
-const csrfTokenStore = new Map();
 
 const parseCookies = (cookieHeader = '') => {
   return cookieHeader.split(';').reduce((cookies, pair) => {
     const [name, ...rest] = pair.split('=');
     if (!name) return cookies;
-    cookies[name.trim()] = decodeURIComponent((rest || []).join('=').trim());
+    const value = (rest || []).join('=').trim();
+    try {
+      cookies[name.trim()] = decodeURIComponent(value);
+    } catch {
+      cookies[name.trim()] = value;
+    }
     return cookies;
   }, {});
-};
-
-const pruneExpiredTokens = () => {
-  const now = Date.now();
-  for (const [token, expiresAt] of csrfTokenStore.entries()) {
-    if (expiresAt <= now) {
-      csrfTokenStore.delete(token);
-    }
-  }
-};
-
-const storeCSRFToken = (token) => {
-  pruneExpiredTokens();
-  csrfTokenStore.set(token, Date.now() + CSRF_TOKEN_TTL);
-};
-
-const isStoredCSRFToken = (token) => {
-  pruneExpiredTokens();
-  return token ? csrfTokenStore.has(token) : false;
 };
 
 export const generateCSRFToken = (req, res, next) => {
@@ -70,8 +55,6 @@ export const generateCSRFToken = (req, res, next) => {
     path: '/',
   });
 
-  storeCSRFToken(token);
-
   console.log('[CSRF] Generated token and set cookie', {
     path: req.path,
     origin: req.headers.origin || null,
@@ -90,7 +73,7 @@ export const validateCSRFToken = (req, res, next) => {
     return next();
   }
 
-  const token = req.headers['x-csrf-token'] || req.body?.csrfToken;
+  const token = req.headers['x-csrf-token'];
   const cookieToken = parseCookies(req.headers.cookie || '').csrfToken;
 
   // Debug logs to help trace CSRF failures. Controlled by global logging settings.
@@ -130,10 +113,24 @@ export const validateCSRFToken = (req, res, next) => {
     return res.status(403).json({ error: 'Missing CSRF token' });
   }
 
-  const validToken = cookieToken ? token === cookieToken : false;
-  const validStoredToken = !cookieToken && isStoredCSRFToken(token);
+  if (!cookieToken) {
+    console.log('[CSRF FULL DEBUG]', {
+      cookieToken: req.cookies?.csrfToken,
+      headerToken: req.headers['x-csrf-token'],
+      cookies: req.cookies,
+      rawCookieHeader: req.headers.cookie,
+    });
+    console.warn('[CSRF] Missing CSRF cookie - request blocked', {
+      path: req.path,
+      method: req.method,
+      origin: req.headers.origin || null,
+      tokenPreview: token ? `${String(token).slice(0,8)}...` : null,
+      hasCookieHeader: Boolean(req.headers.cookie),
+    });
+    return res.status(403).json({ error: 'Missing CSRF cookie' });
+  }
 
-  if (!validToken && !validStoredToken) {
+  if (token !== cookieToken) {
     console.log('[CSRF FULL DEBUG]', {
       cookieToken: req.cookies?.csrfToken,
       headerToken: req.headers['x-csrf-token'],
@@ -146,17 +143,8 @@ export const validateCSRFToken = (req, res, next) => {
       origin: req.headers.origin || null,
       tokenPreview: token ? `${String(token).slice(0,8)}...` : null,
       cookieTokenPreview: cookieToken ? `${String(cookieToken).slice(0,8)}...` : null,
-      storedTokenAvailable: Boolean(token && isStoredCSRFToken(token)),
     });
     return res.status(403).json({ error: 'Invalid CSRF token' });
-  }
-
-  if (validStoredToken) {
-    console.log('[CSRF] Valid header-only CSRF token accepted', {
-      path: req.path,
-      origin: req.headers.origin || null,
-      tokenPreview: token ? `${String(token).slice(0,8)}...` : null,
-    });
   }
 
   next();
