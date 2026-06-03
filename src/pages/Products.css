@@ -68,6 +68,12 @@
   transition: all 0.25s ease;
   text-align: left;
   font-size: 0.95rem;
+  color: var(--text-dark);
+  font-weight: 500;
+}
+
+.category-btn:not(.active) {
+  color: #333;
 }
 
 .category-btn:hover {

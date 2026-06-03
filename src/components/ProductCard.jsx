@@ -63,17 +63,14 @@ const ProductCard = ({ perfume }) => {
           <p className="product-description">{perfume.description}</p>
 
           <div className="product-footer">
-            <span className="product-price">{formatCLP(perfume.price)}</span>
+            <span className="product-price">
+              {formatCLP(perfume.price)}
+            </span>
 
-            <div className="product-actions" onClick={(e) => e.preventDefault()}>
-
-              {/* QUANTITY CONTROL */}
-              <div className="quantity-selector">
-                <button onClick={decrease}>←</button>
-                <span>{quantity}</span>
-                <button onClick={increase}>→</button>
-              </div>
-
+            <div
+              className="product-actions"
+              onClick={(e) => e.preventDefault()}
+            >
               <button
                 className="add-to-cart-btn"
                 onClick={handleAddToCart}
@@ -82,6 +79,13 @@ const ProductCard = ({ perfume }) => {
                 {isOutOfStock ? 'Agotado' : t('productCard.agregarCarrito')}
               </button>
 
+              <div className="quantity-selector">
+                <button onClick={decrease}>−</button>
+
+                <span>{quantity}</span>
+
+                <button onClick={increase}>+</button>
+              </div>
             </div>
           </div>
 
