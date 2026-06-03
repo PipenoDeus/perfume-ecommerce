@@ -98,21 +98,12 @@
   display: flex;
   gap: 0.5rem;
   align-items: center;
-  justify-content: space-between;
-}
-
-.quantity-input {
-  width: 60px;
-  padding: 0.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  text-align: center;
-  font-size: 0.9rem;
+  justify-content: center;
 }
 
 .add-to-cart-btn {
   padding: 0.7rem 1rem;
-  flex: 1;
+  width: 100%;
   background: var(--primary-gold);
   color: white;
   border: none;
@@ -129,4 +120,15 @@
   background: var(--dark-gold);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(201, 169, 97, 0.3);
+}
+
+.add-to-cart-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.add-to-cart-btn:disabled:hover {
+  background: var(--primary-gold);
+  box-shadow: none;
+  transform: none;
 }

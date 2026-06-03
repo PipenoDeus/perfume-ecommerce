@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { CartContext } from '../context/CartContext';
 import { LanguageContext } from '../context/LanguageContext';
@@ -7,7 +7,8 @@ import './ProductCard.css';
 const ProductCard = ({ perfume }) => {
   const { addToCart } = useContext(CartContext);
   const { t } = useContext(LanguageContext);
-  const [quantity, setQuantity] = useState(1);
+  const stock = Number(perfume.stock || 0);
+  const isOutOfStock = stock <= 0;
 
   const formatCLP = (value) => {
     const amount = Number(value || 0);
@@ -21,8 +22,8 @@ const ProductCard = ({ perfume }) => {
 
   const handleAddToCart = (e) => {
     e.preventDefault();
-    addToCart(perfume, quantity);
-    setQuantity(1);
+    if (isOutOfStock) return;
+    addToCart(perfume, 1);
   };
 
   return (
@@ -35,21 +36,16 @@ const ProductCard = ({ perfume }) => {
           />
         </div>
         <div className="product-info">
-          <h3 className="product-name">{perfume.name}</h3>
+          <h3 className="product-name">
+            {perfume.name} - stock {stock}
+          </h3>
           <p className="product-brand">{perfume.brand}</p>
           <p className="product-description">{perfume.description}</p>
           <div className="product-footer">
             <span className="product-price">{formatCLP(perfume.price)}</span>
             <div className="product-actions" onClick={(e) => e.preventDefault()}>
-              <input
-                type="number"
-                min="1"
-                value={quantity}
-                onChange={(e) => setQuantity(parseInt(e.target.value))}
-                className="quantity-input"
-              />
-              <button className="add-to-cart-btn" onClick={handleAddToCart}>
-                {t('productCard.agregarCarrito')}
+              <button className="add-to-cart-btn" onClick={handleAddToCart} disabled={isOutOfStock}>
+                {isOutOfStock ? 'Agotado' : t('productCard.agregarCarrito')}
               </button>
             </div>
           </div>

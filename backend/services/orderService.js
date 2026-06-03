@@ -1,8 +1,79 @@
 import { supabase } from '../server.js';
 
+const getOrderItems = (items = []) => {
+  const itemMap = new Map();
+
+  for (const item of items || []) {
+    const id = String(item?.id || '').trim();
+    const quantity = Number(item?.quantity || 0);
+    if (!id || !Number.isFinite(quantity) || quantity <= 0) continue;
+
+    itemMap.set(id, (itemMap.get(id) || 0) + quantity);
+  }
+
+  return Array.from(itemMap.entries()).map(([id, quantity]) => ({ id, quantity }));
+};
+
+const validatePerfumeStock = async (items = []) => {
+  const orderItems = getOrderItems(items);
+
+  for (const item of orderItems) {
+    const { data: perfume, error } = await supabase
+      .from('perfumes')
+      .select('id, name, stock')
+      .eq('id', item.id)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!perfume) {
+      throw new Error(`Perfume not found: ${item.id}`);
+    }
+
+    const stock = Number(perfume.stock || 0);
+    if (stock < item.quantity) {
+      throw new Error(`Stock insuficiente para ${perfume.name}. Disponible: ${stock}`);
+    }
+  }
+};
+
+const decrementPerfumeStock = async (items = []) => {
+  const orderItems = getOrderItems(items);
+
+  for (const item of orderItems) {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const { data: perfume, error: fetchError } = await supabase
+        .from('perfumes')
+        .select('id, stock')
+        .eq('id', item.id)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+      if (!perfume) break;
+
+      const currentStock = Number(perfume.stock || 0);
+      const nextStock = Math.max(0, currentStock - item.quantity);
+
+      const { data: updatedPerfume, error: updateError } = await supabase
+        .from('perfumes')
+        .update({
+          stock: nextStock,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', item.id)
+        .eq('stock', currentStock)
+        .select('id')
+        .maybeSingle();
+
+      if (updateError) throw updateError;
+      if (updatedPerfume) break;
+    }
+  }
+};
+
 // Create a new order
 export const createOrder = async (userId, items, shippingAddress) => {
   try {
+    await validatePerfumeStock(items);
     const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
     const { data, error } = await supabase
@@ -60,6 +131,8 @@ export const getUserOrders = async (userId) => {
 // Update order status using the real orders schema
 export const updateOrderStatus = async (orderId, status, transactionId = null, options = {}) => {
   try {
+    const existingOrder = await getOrder(orderId);
+    const shouldDecrementStock = status === 'paid' && existingOrder?.status !== 'paid';
     const provider = options.provider || null;
     const paymentResponse = options.paymentResponse || null;
     const updateData = {
@@ -93,6 +166,11 @@ export const updateOrderStatus = async (orderId, status, transactionId = null, o
       .single();
 
     if (error) throw error;
+
+    if (shouldDecrementStock) {
+      await decrementPerfumeStock(existingOrder.items);
+    }
+
     return data;
   } catch (err) {
     throw new Error(`Error updating order: ${err.message}`);

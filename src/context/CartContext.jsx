@@ -13,16 +13,20 @@ export const CartProvider = ({ children }) => {
   });
 
   const addToCart = useCallback((perfume, quantity = 1) => {
+    const stock = Number(perfume.stock || 0);
+    if (stock <= 0) return;
+    const safeQuantity = Math.min(Math.max(1, Number(quantity) || 1), stock);
+
     setCart((prevCart) => {
       const existingItem = prevCart.find((item) => item.id === perfume.id);
       if (existingItem) {
         return prevCart.map((item) =>
           item.id === perfume.id
-            ? { ...item, quantity: item.quantity + quantity }
+            ? { ...item, quantity: Math.min(item.quantity + safeQuantity, stock) }
             : item
         );
       }
-      return [...prevCart, { ...perfume, quantity }];
+      return [...prevCart, { ...perfume, quantity: safeQuantity }];
     });
   }, []);
 
