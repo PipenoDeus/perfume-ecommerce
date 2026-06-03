@@ -73,6 +73,17 @@ export const validateCSRFToken = (req, res, next) => {
     return next();
   }
 
+  const authorizationHeader = String(req.headers.authorization || '');
+  if (/^Bearer\s+\S+/i.test(authorizationHeader)) {
+    console.log('[CSRF] Bearer-authenticated request skipped CSRF cookie validation', {
+      path: req.path,
+      method: req.method,
+      origin: req.headers.origin || null,
+      hasCookieHeader: Boolean(req.headers.cookie),
+    });
+    return next();
+  }
+
   const token = req.headers['x-csrf-token'];
   const cookieToken = parseCookies(req.headers.cookie || '').csrfToken;
 
