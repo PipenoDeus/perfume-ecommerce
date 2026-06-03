@@ -6,13 +6,20 @@ import './Products.css';
 
 const Products = () => {
   const { t } = useContext(LanguageContext);
+
   const [perfumes, setPerfumes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
   const [selectedBrand, setSelectedBrand] = useState('all');
   const [brands, setBrands] = useState([]);
 
-  const normalizeBrand = (value) => String(value || '').trim().toLowerCase();
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9;
+
+  const normalizeBrand = (value) =>
+    String(value || '').trim().toLowerCase();
+
   const formatBrand = (value) =>
     normalizeBrand(value)
       .split(' ')
@@ -29,8 +36,7 @@ const Products = () => {
       setLoading(true);
       const data = await perfumeService.getAllPerfumes();
       setPerfumes(data);
-      
-      // Extract unique brands (case-insensitive)
+
       const brandMap = new Map();
       data.forEach((perfume) => {
         const normalized = normalizeBrand(perfume.brand);
@@ -38,6 +44,7 @@ const Products = () => {
           brandMap.set(normalized, formatBrand(perfume.brand));
         }
       });
+
       setBrands(['all', ...brandMap.values()]);
     } catch (err) {
       setError(t('products.error'));
@@ -46,29 +53,55 @@ const Products = () => {
     }
   };
 
-  const filteredPerfumes = selectedBrand === 'all'
-    ? perfumes
-    : perfumes.filter((p) => normalizeBrand(p.brand) === normalizeBrand(selectedBrand));
+  // 🔥 RESET PAGE WHEN FILTER CHANGES
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedBrand]);
 
-  if (loading) return <div className="products-loading">{t('products.cargando')}</div>;
-  if (error) return <div className="products-error">{error}</div>;
+  // 🔥 FILTER
+  const filteredPerfumes =
+    selectedBrand === 'all'
+      ? perfumes
+      : perfumes.filter(
+          (p) =>
+            normalizeBrand(p.brand) === normalizeBrand(selectedBrand)
+        );
+
+  // 🔥 PAGINATION LOGIC
+  const totalPages = Math.ceil(filteredPerfumes.length / itemsPerPage);
+
+  const paginatedPerfumes = filteredPerfumes.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  if (loading)
+    return <div className="products-loading">{t('products.cargando')}</div>;
+
+  if (error)
+    return <div className="products-error">{error}</div>;
 
   return (
     <div className="products-page">
+
       <div className="products-header">
         <h1>{t('products.titulo')}</h1>
         <p>{t('products.subtitulo')}</p>
       </div>
 
       <div className="products-container">
-        {/* Brand Filter */}
+
+        {/* FILTER */}
         <div className="category-filter">
           <h3>{t('products.marcas')}</h3>
+
           <div className="category-buttons">
             {brands.map((brand) => (
               <button
                 key={brand}
-                className={`category-btn ${selectedBrand === brand ? 'active' : ''}`}
+                className={`category-btn ${
+                  selectedBrand === brand ? 'active' : ''
+                }`}
                 onClick={() => setSelectedBrand(brand)}
               >
                 {brand === 'all' ? 'All' : brand}
@@ -77,21 +110,59 @@ const Products = () => {
           </div>
         </div>
 
-        {/* Products Grid */}
+        {/* MAIN */}
         <div className="products-main">
+
           <div className="products-count">
-            {t('products.mostrando')} {filteredPerfumes.length} {t('products.productos')}
+            {t('products.mostrando')} {filteredPerfumes.length}{' '}
+            {t('products.productos')}
           </div>
-          
+
+          {/* GRID */}
           <div className="products-grid">
-            {filteredPerfumes.length > 0 ? (
-              filteredPerfumes.map((perfume) => (
-                <ProductCard key={perfume.id} perfume={perfume} />
+            {paginatedPerfumes.length > 0 ? (
+              paginatedPerfumes.map((perfume) => (
+                <ProductCard
+                  key={perfume.id}
+                  perfume={perfume}
+                />
               ))
             ) : (
-              <p className="no-products">{t('products.noPerfumesEncontrados')}</p>
+              <p className="no-products">
+                {t('products.noPerfumesEncontrados')}
+              </p>
             )}
           </div>
+
+          {/* PAGINATION */}
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button
+                onClick={() =>
+                  setCurrentPage((p) => Math.max(p - 1, 1))
+                }
+                disabled={currentPage === 1}
+              >
+                ←
+              </button>
+
+              <span>
+                {currentPage} / {totalPages}
+              </span>
+
+              <button
+                onClick={() =>
+                  setCurrentPage((p) =>
+                    Math.min(p + 1, totalPages)
+                  )
+                }
+                disabled={currentPage === totalPages}
+              >
+                →
+              </button>
+            </div>
+          )}
+
         </div>
       </div>
     </div>
