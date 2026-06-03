@@ -1,11 +1,7 @@
-const RAW_API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  import.meta.env.VITE_BACKEND_URL ||
-  'http://localhost:3000';
+import { API_BASE_URL } from './apiConfig';
 
 const RAW_CSRF_PATH = import.meta.env.VITE_CSRF_PATH || '/api/csrf-token';
 
-const API_BASE_URL = RAW_API_BASE_URL.replace(/\/+$/, '');
 let CSRF_PATH = RAW_CSRF_PATH.startsWith('/') ? RAW_CSRF_PATH : `/${RAW_CSRF_PATH}`;
 
 // Evita /api/api/*

@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../services/supabase';
+import { API_BASE_URL } from '../services/apiConfig';
 import './Auth.css';
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
 
 const Signup = () => {
   const navigate = useNavigate();

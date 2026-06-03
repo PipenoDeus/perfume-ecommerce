@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { LanguageContext } from '../context/LanguageContext';
 import { supabase } from '../services/supabase';
 import { fetchCSRFToken, getCSRFToken } from '../services/csrfService';
+import { API_BASE_URL } from '../services/apiConfig';
 import './OrderTrackingManager.css';
 
 const COURIER_OPTIONS = [
@@ -201,7 +202,6 @@ const OrderTrackingManager = ({ mode = 'all' }) => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) throw new Error('No hay sesión activa');
 
-      const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
       const requestBody = JSON.stringify({
         trackingCode: cleanTracking,
         courier: shippingCompanyInput,

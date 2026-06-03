@@ -3,9 +3,9 @@ import { AuthContext } from '../context/AuthContext';
 import { LanguageContext } from '../context/LanguageContext';
 import { orderService } from '../services/paymentService';
 import { supabase } from '../services/supabase';
+import { API_BASE_URL } from '../services/apiConfig';
 import './Profile.css';
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
 const ORDERS_PER_PAGE = 5;
 const ITEMS_PER_ORDER_PAGE = 1;
 

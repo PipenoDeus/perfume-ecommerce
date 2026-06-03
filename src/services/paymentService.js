@@ -1,7 +1,6 @@
 import { supabase } from './supabase';
 import { fetchCSRFToken, getCSRFToken } from './csrfService';
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
+import { API_BASE_URL } from './apiConfig';
 
 const fetchWithCSRFRetry = async (url, options = {}) => {
   const token = await getCSRFToken();

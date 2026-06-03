@@ -4,9 +4,8 @@ import { CartContext } from '../context/CartContext';
 import { AuthContext } from '../context/AuthContext';
 import { LanguageContext } from '../context/LanguageContext';
 import { orderService, paymentService } from '../services/paymentService';
+import { API_BASE_URL } from '../services/apiConfig';
 import './Cart.css';
-
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
 
 const Cart = () => {
   const { t } = useContext(LanguageContext);
