@@ -154,7 +154,7 @@ const ProductDetail = () => {
           </div>
 
           <div className="product-detail-actions">
-            <div className="quantity-selector">
+            <div className="product-detail-quantity">
               <label htmlFor="quantity">{t('productDetail.cantidad')}:</label>
               <input
                 id="quantity"

@@ -91,7 +91,6 @@
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
-
   overflow: hidden;
 }
 
@@ -124,18 +123,14 @@
 .add-to-cart-btn {
   width: 100%;
   padding: 0.85rem 1rem;
-
   background: var(--primary-gold);
   color: white;
-
   border: none;
   border-radius: 8px;
-
   cursor: pointer;
 
   font-weight: 700;
   font-size: 0.9rem;
-
   text-transform: uppercase;
   letter-spacing: 0.5px;
 
@@ -155,24 +150,22 @@
   box-shadow: none;
 }
 
-/* QUANTITY SELECTOR */
-.quantity-selector {
+/* QUANTITY SELECTOR (IMPORTANTE: aislado del detail) */
+.product-card .quantity-selector {
   display: flex;
   justify-content: center;
   align-items: center;
+  flex-direction: row;
   gap: 12px;
 }
 
-.quantity-selector button {
+.product-card .quantity-selector button {
   width: 34px;
   height: 34px;
-
   border: none;
   border-radius: 6px;
-
   background: #111;
   color: white;
-
   cursor: pointer;
 
   font-size: 18px;
@@ -185,12 +178,12 @@
   transition: all 0.2s ease;
 }
 
-.quantity-selector button:hover {
+.product-card .quantity-selector button:hover {
   background: #222;
   transform: scale(1.05);
 }
 
-.quantity-selector span {
+.product-card .quantity-selector span {
   min-width: 30px;
   text-align: center;
   font-size: 1rem;
