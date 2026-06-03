@@ -58,15 +58,24 @@ export const getUserOrders = async (userId) => {
 };
 
 // Update order status using the real orders schema
-export const updateOrderStatus = async (orderId, status, transactionId = null) => {
+export const updateOrderStatus = async (orderId, status, transactionId = null, options = {}) => {
   try {
+    const provider = options.provider || null;
+    const paymentResponse = options.paymentResponse || null;
     const updateData = {
       status,
       updated_at: new Date().toISOString(),
     };
 
-    if (transactionId) {
-      updateData.transaction_id = transactionId;
+    if (provider) {
+      updateData.payment_provider = provider;
+    }
+
+    if (transactionId || paymentResponse) {
+      updateData.webpay_response = paymentResponse || {
+        provider: provider || 'unknown',
+        transactionId,
+      };
     }
 
     if (status === 'paid') {

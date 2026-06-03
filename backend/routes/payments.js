@@ -369,7 +369,10 @@ router.post('/flow/confirmation', async (req, res) => {
     const paid = Number(flowResult?.status) === 2;
     if (paid && order.status !== 'paid') {
       const transactionId = String(flowResult?.flowOrder || token);
-      await updateOrderStatus(orderId, 'paid', transactionId);
+      await updateOrderStatus(orderId, 'paid', transactionId, {
+        provider: 'flow',
+        paymentResponse: flowResult,
+      });
     }
 
     return res.status(200).json({ ok: true });
@@ -445,7 +448,12 @@ router.post('/flow/confirm', authenticateUser, paymentLimiter, async (req, res) 
     }
 
     if (order.status === 'paid') {
-      return res.json({ status: 'paid', orderId, transactionId: order.transaction_id || token });
+      const storedTransactionId =
+        order.webpay_response?.transactionId ||
+        order.webpay_response?.flowOrder ||
+        order.webpay_buy_order ||
+        token;
+      return res.json({ status: 'paid', orderId, transactionId: storedTransactionId });
     }
 
     const flowResult = await getFlowPaymentStatus(token);
@@ -464,12 +472,18 @@ router.post('/flow/confirm', authenticateUser, paymentLimiter, async (req, res) 
     const transactionId = String(flowResult?.flowOrder || token);
 
     if (flowStatus === 2) {
-      await updateOrderStatus(orderId, 'paid', transactionId);
+      await updateOrderStatus(orderId, 'paid', transactionId, {
+        provider: 'flow',
+        paymentResponse: flowResult,
+      });
       return res.json({ status: 'paid', orderId, transactionId });
     }
 
     if (flowStatus === 3 || flowStatus === 4) {
-      await updateOrderStatus(orderId, 'failed', transactionId);
+      await updateOrderStatus(orderId, 'failed', transactionId, {
+        provider: 'flow',
+        paymentResponse: flowResult,
+      });
       return res.json({ status: 'failed', orderId, transactionId });
     }
 
@@ -558,7 +572,10 @@ router.post('/paypal-webhook', async (req, res) => {
 
     // 6. Update order
     const transactionId = webhookEvent.id;
-    await updateOrderStatus(orderId, 'paid', transactionId);
+    await updateOrderStatus(orderId, 'paid', transactionId, {
+      provider: 'paypal',
+      paymentResponse: webhookEvent,
+    });
 
     AuditLogger.logPayment('PAYMENT_COMPLETED', {
       userId: order.user_id,
@@ -629,7 +646,10 @@ router.post('/capture', authenticateUser, paymentLimiter, async (req, res) => {
     }
 
     const transactionId = captureData?.purchase_units?.[0]?.payments?.captures?.[0]?.id || paypalOrderId;
-    await updateOrderStatus(internalOrderId, 'paid', transactionId);
+    await updateOrderStatus(internalOrderId, 'paid', transactionId, {
+      provider: 'paypal',
+      paymentResponse: captureData,
+    });
 
     AuditLogger.logPayment('PAYMENT_CAPTURED_PAYPAL', {
       userId: order.user_id,
@@ -709,7 +729,10 @@ router.post('/confirm-bank', authenticateUser, paymentLimiter, async (req, res) 
       return res.status(400).json({ error: 'Order already paid' });
     }
 
-    await updateOrderStatus(orderId, 'paid', transactionId);
+    await updateOrderStatus(orderId, 'paid', transactionId, {
+      provider: 'bank',
+      paymentResponse: { transactionId },
+    });
 
     AuditLogger.logPayment('PAYMENT_CONFIRMED_BANK', {
       userId: order.user_id,
