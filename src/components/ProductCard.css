@@ -3,12 +3,13 @@
   color: inherit;
 }
 
+/* CARD */
 .product-card {
   background: white;
-  border-radius: 8px;
+  border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border-color);
@@ -18,117 +19,171 @@
 
 .product-card:hover {
   transform: translateY(-6px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.12);
 }
 
+/* IMAGE */
 .product-image {
   width: 200px;
   height: 200px;
-  overflow: hidden;
-  background: #ffffff;
-  padding: 0;
   margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
 }
 
 .product-image img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  object-position: center;
-  transition: transform 0.3s ease;
 }
 
-.product-card:hover .product-image img {
-  transform: none;
-}
-
+/* INFO */
 .product-info {
-  padding: 1.5rem;
+  padding: 1.2rem;
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 320px;
 }
 
+/* TITLE + STOCK */
+.product-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
 .product-name {
-  margin: 0 0 0.3rem;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
   color: var(--text-dark);
-  font-weight: 600;
 }
 
+.product-stock {
+  font-size: 0.75rem;
+  color: #777;
+  white-space: nowrap;
+}
+
+/* BRAND (FIX VISIBILIDAD) */
 .product-brand {
-  margin: 0 0 0.5rem;
-  color: var(--primary-gold);
-  font-size: 0.85rem;
-  font-weight: 600;
+  margin: 0.3rem 0 0.5rem;
+  color: #b8893a;
+  font-size: 0.8rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
 }
 
+/* DESCRIPTION */
 .product-description {
   margin: 0 0 1rem;
   color: var(--text-light);
   font-size: 0.85rem;
   flex: 1;
   line-height: 1.5;
+
   display: -webkit-box;
+
+  /* estándar (aún no totalmente soportado en todos los browsers, pero ya existe) */
+  line-clamp: 4;
+
+  /* prefijo actual necesario */
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
+
   overflow: hidden;
 }
 
+/* FOOTER */
 .product-footer {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  gap: 0.75rem;
+  gap: 0.8rem;
   padding-top: 1rem;
   border-top: 1px solid var(--border-color);
 }
 
+/* PRICE */
 .product-price {
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: var(--primary-gold);
   text-align: center;
 }
 
+/* ACTIONS */
 .product-actions {
   display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: stretch;
 }
 
+/* QUANTITY SELECTOR (FIX FLECHAS) */
+.quantity-selector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.quantity-selector button {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: none;
+  background: #111;
+  color: white;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s ease;
+}
+
+.quantity-selector button:hover {
+  transform: scale(1.05);
+  background: #222;
+}
+
+.quantity-selector span {
+  min-width: 22px;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* BUTTON */
 .add-to-cart-btn {
-  padding: 0.7rem 1rem;
+  padding: 0.75rem 1rem;
   width: 100%;
   background: var(--primary-gold);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
 }
 
 .add-to-cart-btn:hover {
   background: var(--dark-gold);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(201, 169, 97, 0.3);
+  box-shadow: 0 4px 12px rgba(201, 169, 97, 0.25);
 }
 
 .add-to-cart-btn:disabled {
+  opacity: 0.5;
   cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.add-to-cart-btn:disabled:hover {
-  background: var(--primary-gold);
-  box-shadow: none;
   transform: none;
+  box-shadow: none;
 }
