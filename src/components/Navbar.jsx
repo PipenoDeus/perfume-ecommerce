@@ -14,6 +14,7 @@ const Navbar = ({ cartCount }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -120,7 +121,14 @@ const Navbar = ({ cartCount }) => {
             </div>
           )}
         </div>
-        <ul className="nav-menu">
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          aria-label="Abrir menú"
+        >
+          {mobileMenuOpen ? '✕' : '☰'} Menú
+        </button>
+        <ul className={`nav-menu ${mobileMenuOpen ? 'mobile-open' : ''}`}>
           <li className="nav-item">
             <Link to="/products" className="nav-link">
               {t('nav.productos')}
