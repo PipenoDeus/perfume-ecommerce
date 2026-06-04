@@ -57,3 +57,12 @@ payment-logs.json
 *.tmp
 tmp/
 temp/
+
+# Internal documentation
+DATABASE_SCHEMA.md
+SECURITY.md
+SECURITY_AUDIT_REPORT.md
+SECURITY_SUMMARY.md
+CSRF_IMPLEMENTATION.md
+DEPLOYMENT.md
+QUICKSTART.md
