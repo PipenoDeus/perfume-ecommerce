@@ -102,10 +102,6 @@ src/
 
 ## Configuración de Base de Datos
 
-Ver [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) para:
-- Definiciones completas de tablas SQL
-- Recomendaciones de políticas RLS
-- Example data insertion queries
 
 ## Navbar
 
@@ -142,6 +138,7 @@ supabase - Instancia del cliente de Supabase.
 perfumeService - Métodos para operaciones CRUD de perfumes.
 authService - Métodos de autenticación de usuarios.
 orderService - Métodos de gestión de pedidos.
+
 ## Mejoras Futuras
 
 Reseñas y valoraciones de usuarios.
