@@ -167,7 +167,9 @@ const ProductDetail = () => {
                 −
               </button>
 
-              <span>{quantity}</span>
+              <span className="quantity-value">
+                {quantity}
+              </span>
 
               <button
                 type="button"
@@ -181,12 +183,15 @@ const ProductDetail = () => {
                 +
               </button>
             </div>
+
             <button
               className={`add-to-cart-btn ${addedToCart ? 'added' : ''}`}
               onClick={handleAddToCart}
               disabled={perfume.stock === 0}
             >
-              {addedToCart ? t('productDetail.agregadoCarrito') : t('productDetail.agregarCarrito')}
+              {addedToCart
+                ? t('productDetail.agregadoCarrito')
+                : t('productDetail.agregarCarrito')}
             </button>
           </div>
         </div>

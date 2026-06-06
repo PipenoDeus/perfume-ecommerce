@@ -335,3 +335,28 @@
     width: 100%;
   }
 }
+
+.quantity-selector {
+  display: inline-flex;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  overflow: hidden;
+  width: fit-content;
+}
+
+.quantity-selector button {
+  width: 48px;
+  height: 48px;
+  border: none;
+  background: #f7f7f7;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.quantity-value {
+  width: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
