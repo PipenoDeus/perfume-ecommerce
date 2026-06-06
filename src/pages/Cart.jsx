@@ -43,7 +43,7 @@ const Cart = () => {
     Productos:
     ${products}
 
-    Total: ${formatCLP(totalAmount)}
+    Total: ${formatCLP(subtotal)}
 
     Nombre: ${user?.user_metadata?.full_name || ''}
     `.trim();
