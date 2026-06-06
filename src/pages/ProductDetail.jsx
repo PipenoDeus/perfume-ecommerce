@@ -43,11 +43,19 @@ const ProductDetail = () => {
   };
 
   const handleAddToCart = () => {
-    if (perfume) {
-      addToCart(perfume, quantity);
-      setAddedToCart(true);
-      setTimeout(() => setAddedToCart(false), 2000);
+    if (!perfume) return;
+
+    if (quantity > perfume.stock) {
+      return;
     }
+
+    addToCart(perfume, quantity);
+
+    setAddedToCart(true);
+
+    setTimeout(() => {
+      setAddedToCart(false);
+    }, 2000);
   };
 
   const imageList = perfume?.image_urls?.length
@@ -111,23 +119,23 @@ const ProductDetail = () => {
           <div className="product-detail-header">
             <h1>{perfume.name}</h1>
             <p className="product-detail-brand">{perfume.brand}</p>
-          </div>
 
-          <div className="product-detail-rating">
-            <span className="stars">
-              {'⭐'.repeat(Math.round(perfume.rating || 5))}
-            </span>
-            <span className="reviews">({perfume.reviews_count || 0} reviews)</span>
-          </div>
-
-          <div className="product-detail-price">
-            <span className="price">{formatCLP(perfume.price)}</span>
             {perfume.stock > 0 ? (
-              <span className="stock">{t('productDetail.enStock')} ({perfume.stock} {t('productDetail.disponibles')})</span>
+              <p className="stock">
+                Stock disponible: {perfume.stock}
+              </p>
             ) : (
-              <span className="out-of-stock">{t('productDetail.agotado')}</span>
+              <p className="out-of-stock">
+                Agotado
+              </p>
             )}
           </div>
+
+            <div className="product-detail-price">
+              <span className="price">
+                {formatCLP(perfume.price)}
+              </span>
+            </div>
 
           <div className="product-detail-description">
             <h3>{t('productDetail.descripcion')}</h3>
@@ -144,27 +152,34 @@ const ProductDetail = () => {
               <span className="value">{genderLabel}</span>
             </div>
             <div className="detail-item">
-              <span className="label">{t('productDetail.tipo')}:</span>
-              <span className="value">{t('productDetail.eauDeParfum')}</span>
-            </div>
-            <div className="detail-item">
-              <span className="label">{t('productDetail.tamanio')}:</span>
-              <span className="value">50ml / 1.7 oz</span>
+              <span className="label">Marca:</span>
+              <span className="value">{perfume.brand}</span>
             </div>
           </div>
 
           <div className="product-detail-actions">
-            <div className="product-detail-quantity">
-              <label htmlFor="quantity">{t('productDetail.cantidad')}:</label>
-              <input
-                id="quantity"
-                type="number"
-                min="1"
-                max={perfume.stock}
-                value={quantity}
-                onChange={(e) => setQuantity(parseInt(e.target.value))}
-                disabled={perfume.stock === 0}
-              />
+            <div className="quantity-selector">
+              <button
+                type="button"
+                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                disabled={quantity <= 1 || perfume.stock === 0}
+              >
+                −
+              </button>
+
+              <span>{quantity}</span>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setQuantity(
+                    Math.min(perfume.stock, quantity + 1)
+                  )
+                }
+                disabled={quantity >= perfume.stock}
+              >
+                +
+              </button>
             </div>
             <button
               className={`add-to-cart-btn ${addedToCart ? 'added' : ''}`}
@@ -173,16 +188,6 @@ const ProductDetail = () => {
             >
               {addedToCart ? t('productDetail.agregadoCarrito') : t('productDetail.agregarCarrito')}
             </button>
-          </div>
-
-          <div className="product-detail-features">
-            <h3>{t('productDetail.caracteristicas')}</h3>
-            <ul>
-              <li>{t('productDetail.autenticoDesc')}</li>
-              <li>{t('productDetail.calidadPremium')}</li>
-              <li>{t('productDetail.duradera')}</li>
-              <li>{t('productDetail.envioGratisDesc')}</li>
-            </ul>
           </div>
         </div>
       </div>
