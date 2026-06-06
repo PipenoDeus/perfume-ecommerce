@@ -25,6 +25,35 @@ const Cart = () => {
   const [communes, setCommunes] = useState([]);
   const [loadingRegions, setLoadingRegions] = useState(true);
   const [loadingCommunes, setLoadingCommunes] = useState(false);
+  const handleLocalPickup = () => {
+  const phone = '56972945310';
+
+  const products = cart
+    .map(
+      (item) =>
+        `• ${item.name} x${item.quantity} - ${formatCLP(
+          item.price * item.quantity
+        )}`
+    )
+    .join('\n');
+
+  const message = `
+    Hola, me interesa estos productos para retiro local:
+
+    Productos:
+    ${products}
+
+    Total: ${formatCLP(totalAmount)}
+
+    Nombre: ${user?.user_metadata?.full_name || ''}
+    `.trim();
+
+      const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(
+        message
+      )}`;
+
+      window.open(whatsappUrl, '_blank');
+    };
 
   useEffect(() => {
     if (!user) {
@@ -290,6 +319,7 @@ const Cart = () => {
     );
   }
 
+  
   return (
     <div className="cart-page">
       <h1>{t('cart.titulo')}</h1>
@@ -448,6 +478,17 @@ const Cart = () => {
             >
               {isSubmitting ? t('cart.procesando') : t('cart.procesarCompra')}
             </button>
+            <button
+              type="button"
+              className="local-pickup-btn"
+              onClick={handleLocalPickup}
+            >
+              Retiro Local por WhatsApp
+            </button>
+
+            <p className="local-pickup-note">
+              Retiro local disponible solo para Quilpué y Villa Alemana.
+            </p>
           </div>
         </div>
       </div>
