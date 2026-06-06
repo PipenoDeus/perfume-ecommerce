@@ -44,8 +44,7 @@ const Cart = () => {
     ${products}
 
     Total: ${formatCLP(subtotal)}
-
-    Nombre: ${user?.user_metadata?.full_name || ''}
+    Por favor, contáctenme para coordinar el retiro.
     `.trim();
 
       const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(
