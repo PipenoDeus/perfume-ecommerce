@@ -66,3 +66,7 @@ SECURITY_SUMMARY.md
 CSRF_IMPLEMENTATION.md
 DEPLOYMENT.md
 QUICKSTART.md
+
+cookies.txt
+cookies2.txt
+*.txt

@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 import { CartContext } from '../context/CartContext';
 import { AuthContext } from '../context/AuthContext';
@@ -6,6 +7,7 @@ import { LanguageContext } from '../context/LanguageContext';
 import { orderService, paymentService } from '../services/paymentService';
 import { API_BASE_URL } from '../services/apiConfig';
 import './Cart.css';
+
 
 const Cart = () => {
   const { t } = useContext(LanguageContext);

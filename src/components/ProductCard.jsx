@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { CartContext } from '../context/CartContext';
 import { LanguageContext } from '../context/LanguageContext';
 import './ProductCard.css';
+import toast from 'react-hot-toast';
 
 const ProductCard = ({ perfume }) => {
   const { addToCart } = useContext(CartContext);
@@ -25,8 +26,12 @@ const ProductCard = ({ perfume }) => {
 
   const handleAddToCart = (e) => {
     e.preventDefault();
+
     if (isOutOfStock) return;
+
     addToCart(perfume, quantity);
+
+    toast.success('Perfume agregado correctamente');
   };
 
   const increase = (e) => {
