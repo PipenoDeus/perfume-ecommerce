@@ -270,6 +270,33 @@ try {
 
 export const supabase = _supabase;
 
+app.get('/api/settings/shipping-cost', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'shipping_cost')
+      .single();
+
+    if (error || !data) {
+      return res.json({
+        shippingCost: 3000
+      });
+    }
+
+    res.json({
+      shippingCost: Number(data.value)
+    });
+
+  } catch (err) {
+    console.error('[SHIPPING COST]', err);
+
+    res.json({
+      shippingCost: 3000
+    });
+  }
+});
+
 // Get CSRF token endpoint
 app.get('/api/csrf-token', (req, res) => {
   console.log('[CSRF] Token endpoint hit', {

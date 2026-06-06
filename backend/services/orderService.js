@@ -40,6 +40,8 @@ const decrementPerfumeStock = async (items = []) => {
   const orderItems = getOrderItems(items);
 
   for (const item of orderItems) {
+    let updated = false;
+
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const { data: perfume, error: fetchError } = await supabase
         .from('perfumes')
@@ -48,10 +50,22 @@ const decrementPerfumeStock = async (items = []) => {
         .maybeSingle();
 
       if (fetchError) throw fetchError;
-      if (!perfume) break;
+
+      if (!perfume) {
+        throw new Error(
+          `Producto no encontrado: ${item.id}`
+        );
+      }
 
       const currentStock = Number(perfume.stock || 0);
-      const nextStock = Math.max(0, currentStock - item.quantity);
+
+      if (currentStock < item.quantity) {
+        throw new Error(
+          `Stock insuficiente para producto ${item.id}`
+        );
+      }
+
+      const nextStock = currentStock - item.quantity;
 
       const { data: updatedPerfume, error: updateError } = await supabase
         .from('perfumes')
@@ -65,24 +79,44 @@ const decrementPerfumeStock = async (items = []) => {
         .maybeSingle();
 
       if (updateError) throw updateError;
-      if (updatedPerfume) break;
+
+      if (updatedPerfume) {
+        updated = true;
+        break;
+      }
+    }
+
+    if (!updated) {
+      throw new Error(
+        `No fue posible actualizar el stock de ${item.id}`
+      );
     }
   }
 };
 
 // Create a new order
-export const createOrder = async (userId, items, shippingAddress) => {
+export const createOrder = async (
+  userId,
+  items,
+  shippingAddress,
+  total
+) => {
   try {
     await validatePerfumeStock(items);
-    const total = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    const calculatedTotal = Number(total);
+
+    if (!Number.isFinite(calculatedTotal)) {
+      throw new Error('Invalid total');
+    }
 
     const { data, error } = await supabase
       .from('orders')
       .insert({
         user_id: userId,
-        items: items,
+        items,
         shipping_address: shippingAddress,
-        total: total,
+        total: calculatedTotal,
         status: 'pending',
         created_at: new Date().toISOString()
       })
@@ -90,11 +124,17 @@ export const createOrder = async (userId, items, shippingAddress) => {
       .single();
 
     if (error) throw error;
+
     return data;
+
   } catch (err) {
-    throw new Error(`Error creating order: ${err.message}`);
+    throw new Error(
+      `Error creating order: ${err.message}`
+    );
   }
 };
+
+
 
 // Get order by ID
 export const getOrder = async (orderId) => {

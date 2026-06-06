@@ -34,16 +34,21 @@ router.post('/', authenticateUser, async (req, res) => {
     }
 
     for (const item of items) {
-      if (!item.id || !item.price || !item.quantity) {
-        return res.status(400).json({ error: 'Invalid item format' });
-      }
-      if (typeof item.quantity !== 'number' || item.quantity < 1) {
-        return res.status(400).json({ error: 'Invalid quantity' });
-      }
-      if (typeof item.price !== 'number' || item.price < 0) {
-        return res.status(400).json({ error: 'Invalid price' });
-      }
+    if (!item.id || !item.quantity) {
+      return res.status(400).json({
+        error: 'Invalid item format'
+      });
     }
+
+    if (
+      typeof item.quantity !== 'number' ||
+      item.quantity < 1
+    ) {
+      return res.status(400).json({
+        error: 'Invalid quantity'
+      });
+    }
+  }
 
     console.log('[ORDERS DATA]', {
       userId: req.user.id,
@@ -51,10 +56,82 @@ router.post('/', authenticateUser, async (req, res) => {
       shippingAddress
     });
 
+
+    const uniqueProductIds = [
+      ...new Set(items.map(item => item.id))
+    ];
+
+    const { data: products, error: productsError } = await supabase
+    .from('perfumes')
+    .select('id, price')
+    .in('id', uniqueProductIds);
+
+    if (productsError) {
+      throw new Error(productsError.message);
+    }
+
+    if (!products || products.length !== uniqueProductIds.length) {
+      return res.status(400).json({
+        error: 'Uno o más productos no existen'
+      });
+    }
+
+    const productMap = new Map(
+      products.map(product => [
+        product.id,
+        Number(product.price)
+      ])
+    );
+
+    // aquí sigue la consulta de shipping_cost
+    const { data: shippingData, error: shippingError } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'shipping_cost')
+      .single();
+
+    if (shippingError) {
+      throw new Error(shippingError.message);
+    }
+
+    const shippingCost = Number(
+      shippingData?.value
+    );
+
+    if (Number.isNaN(shippingCost)) {
+      throw new Error(
+        'shipping_cost inválido en settings'
+      );
+    }
+
+    let subtotal = 0;
+
+    const validatedItems = [];
+
+    for (const item of items) {
+      const realPrice = productMap.get(item.id);
+
+      if (realPrice === undefined) {
+        return res.status(400).json({
+          error: `Producto ${item.id} no encontrado`
+        });
+      }
+
+      subtotal += realPrice * item.quantity;
+
+      validatedItems.push({
+        ...item,
+        price: realPrice
+      });
+    }
+
+    const total = subtotal + shippingCost;
+
     const order = await createOrder(
       req.user.id,
-      items,
-      shippingAddress
+      validatedItems,
+      shippingAddress,
+      total
     );
 
     console.log('[ORDER CREATED]', order);
@@ -71,6 +148,7 @@ router.post('/', authenticateUser, async (req, res) => {
     });
   }
 });
+
 
 // Get user orders
 router.get('/', authenticateUser, async (req, res) => {

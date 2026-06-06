@@ -8,8 +8,8 @@ import { orderService, paymentService } from '../services/paymentService';
 import { API_BASE_URL } from '../services/apiConfig';
 import './Cart.css';
 
-
 const Cart = () => {
+  const [shippingCost, setShippingCost] = useState(0);
   const { t } = useContext(LanguageContext);
   const { user } = useContext(AuthContext);
   const { cart, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useContext(CartContext);
@@ -127,6 +127,34 @@ const Cart = () => {
   }, [regions, shippingAddress.region, shippingAddress.regionId]);
 
   useEffect(() => {
+  const loadShippingCost = async () => {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/settings/shipping-cost`,
+        {
+          credentials: 'include',
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Error obteniendo costo de envío');
+      }
+
+      const data = await response.json();
+
+      setShippingCost(Number(data.shippingCost || 0));
+    } catch (error) {
+      console.error('[SHIPPING COST]', error);
+
+      // respaldo visual
+      setShippingCost(3000);
+    }
+  };
+
+    loadShippingCost();
+  }, []);
+
+  useEffect(() => {
     let isMounted = true;
 
     const loadCommunes = async () => {
@@ -198,9 +226,8 @@ const Cart = () => {
     }).format(amount);
   };
 
-  const shippingCost = 0;
   const subtotal = getTotalPrice();
-  const totalAmount = subtotal + shippingCost;
+  const totalAmount = subtotal + Number(shippingCost);
 
   const handleCheckout = async () => {
     if (!user) {
@@ -357,6 +384,10 @@ const Cart = () => {
           <div className="summary-row">
             <span>{t('cart.subtotal')}</span>
             <span>{formatCLP(subtotal)}</span>
+          </div>
+          <div className="summary-row">
+            <span>Envío</span>
+            <span>{formatCLP(shippingCost)}</span>
           </div>
           <div className="summary-total">
             <span>{t('cart.total')}:</span>
