@@ -230,7 +230,7 @@ export const translations = {
       privacidad: 'Política de Privacidad',
       terminos: 'Términos y Condiciones',
       contactanos: 'Contáctanos',
-      email: 'Email: info@perfumeshop.com',
+      email: 'Email: BegoQamar@gmail.com',
       whatsapp: 'WhatsApp: +56 9 7294 5310',
       direccion: 'Dirección: El quillay - Villa alemana',
       derechosReservados: 'Todos los derechos reservados',
